@@ -781,6 +781,89 @@ slides.append(f'''
  <div class="foot">60 anos de computação: a máquina veio até a nossa língua — não o contrário</div>
 </section>''')
 
+# 12c — reflexão final: os desafios (custo, energia, data centers, ambiente)
+_desafios = [
+    ("💸", "Custos altos", "treinar e rodar",
+     "treinar um modelo de fronteira custa centenas de milhões de dólares — "
+     "e cada resposta tem um custo de inferência"),
+    ("⚡", "Fome de energia", "a causa principal",
+     "uma GPU B200 (como a deste projeto) consome ~1 kW — um micro-ondas "
+     "ligado sem parar; um data center de IA usa milhares delas"),
+    ("🏗️", "Corrida dos data centers", "capex recorde",
+     "as big techs investem centenas de bilhões de dólares por ano em novos "
+     "data centers — e já encomendam até usinas nucleares dedicadas"),
+    ("🌍", "Impacto ambiental", "carbono e água",
+     "além da eletricidade, o resfriamento consome água — e a pegada "
+     "depende de quão limpa é a matriz energética local"),
+]
+_dcards = []
+for i, (ic, tt, ano, cap) in enumerate(_desafios):
+    _dcards.append(
+        f'<div class="ecard"><div class="eic">{ic}</div>'
+        f'<div class="ett">{e(tt)}</div><div class="eano">{e(ano)}</div>'
+        f'<div class="ecap">{e(cap)}</div></div>')
+    if i < len(_desafios) - 1:
+        _dcards.append('<div class="earr">＋</div>')
+
+
+def svg_energia():
+    """Barras: eletricidade dos data centers no mundo (TWh/ano, IEA)."""
+    dados = [("2015", 200, 0), ("2020", 290, 0), ("2024", 415, 0),
+             ("2030", 945, 1)]
+    mx = 945.0
+    W, H, BW = 360, 150, 64
+    el = []
+    for i, (ano, v, proj) in enumerate(dados):
+        x = 24 + i * 86
+        h = v / mx * 96
+        y = 118 - h
+        cor = "#f4a722" if proj else "#3b7dba"
+        extra = ' opacity="0.85" stroke="#b07b10" stroke-dasharray="5,3"' \
+            if proj else ""
+        el.append(f'<rect x="{x}" y="{y:.0f}" width="{BW}" '
+                  f'height="{h:.0f}" rx="5" fill="{cor}"{extra}/>')
+        el.append(f'<text x="{x+BW/2:.0f}" y="{y-6:.0f}" '
+                  f'text-anchor="middle" font-size="11" font-weight="700" '
+                  f'fill="#14233f">{v}</text>')
+        rot = ano + ("ᵖ" if proj else "")
+        el.append(f'<text x="{x+BW/2:.0f}" y="132" text-anchor="middle" '
+                  f'font-size="10" fill="#5b6675">{rot}</text>')
+    el.append(f'<text x="{W/2}" y="147" text-anchor="middle" font-size="9" '
+              f'fill="#5b6675">eletricidade dos data centers no mundo '
+              f'(TWh/ano · IEA · ᵖ projeção)</text>')
+    return (f'<svg viewBox="0 0 {W} {H}" '
+            f'xmlns="http://www.w3.org/2000/svg">{"".join(el)}</svg>')
+
+
+slides.append(f'''
+<section class="slide">
+ {header("REFLEXÃO · PARTE 2", "Nada disso é de graça — os desafios")}
+ <div class="body" style="justify-content:center;gap:calc(var(--u)*1.0)">
+  <div class="elbl">O OUTRO LADO DA MOEDA</div>
+  <div class="evo">{"".join(_dcards)}</div>
+  <div class="rev">
+   <div class="cols" style="flex:0 0 auto;align-items:stretch">
+    <div class="colL">{figbox(svg_energia(),
+        "Em 2030, data centers devem consumir quase 1.000 TWh/ano — mais que o dobro de 2024 e na ordem do consumo elétrico anual do Japão"
+        ).replace('<div class="figin">',
+                  '<div class="figin" style="max-height:calc(var(--u)*17)">')}</div>
+    <div class="colR">
+     <ul class="big" style="font-size:calc(var(--u)*1.05);gap:calc(var(--u)*0.7)">
+      <li><b>O consumo dispara:</b> a IA é o principal motor do crescimento da demanda elétrica dos data centers nesta década.</li>
+      <li><b>Mas a eficiência também:</b> o custo por token despencou ordens de magnitude em poucos anos — chips, modelos e software cada vez mais eficientes.</li>
+      <li><b>E a matriz importa:</b> nuclear e renováveis viram peça central da infraestrutura de IA.</li>
+     </ul>
+    </div>
+   </div>
+  </div>
+  {rev('<div class="why"><span class="wlbl">A REFLEXÃO FINAL</span> '
+       'Toda revolução de interface teve seu preço — e o desta é medido em watts. '
+       'A resposta não é não usar: é <b>usar bem</b>. Seis dias de conversa que substituem '
+       'meses de trabalho são exatamente isso — energia convertida em valor, não em desperdício.</div>')}
+ </div>
+ <div class="foot">Ordens de grandeza públicas (IEA, Energy &amp; AI 2025) — o ponto é a tendência, não o decimal</div>
+</section>''')
+
 # 13 — encerramento
 slides.append(f'''
 <section class="slide cover">

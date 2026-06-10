@@ -562,6 +562,12 @@ slides.append(f'''
 </section>''')
 
 # 3 — números reais
+def fmt_bi(n):
+    if n >= 1e9:
+        return f"{n/1e9:.1f} bi".replace(".", ",")
+    return f"{n/1e6:.0f} mi"
+
+
 cards = [
     (str(G["n_sessoes"]), "sessões de trabalho"),
     ("6 dias", f'{fmt_data(G["periodo_inicio"]+"T")} a {fmt_data(G["periodo_fim"]+"T")}'),
@@ -569,6 +575,8 @@ cards = [
     (fmt_n(G["msgs_assistant"]), "respostas e ações do Claude"),
     (fmt_n(G["comandos_bash"]), "comandos executados"),
     (fmt_n(G["arquivos_escritos"]), "arquivos criados ou editados"),
+    (fmt_bi(G["tokens_total"]), "tokens processados"),
+    (f'US$ {fmt_n(G["custo_api_usd"])}', "custo equivalente em preço de API"),
 ]
 cards_html = "".join(
     f'<div class="card"><div class="cn">{e(v)}</div>'
@@ -582,10 +590,11 @@ slides.append(f'''
    <div class="colR">{figbox(svg_barras_sessoes(),
         "Volume de mensagens por sessão — as duas grandes concentram o planejamento e a entrega final")}</div>
   </div>
-  <div class="why"><span class="wlbl">FONTE</span> Estatísticas extraídas diretamente dos
-  {G["mb_transcripts"]} MB de histórico das sessões do Claude Code deste projeto — nada aqui é estimativa.</div>
+  <div class="why"><span class="wlbl">FONTE</span> Estatísticas e tokens medidos diretamente no histórico
+  das sessões ({G["mb_transcripts"]} MB) — nada aqui é estimativa. Detalhe: {round(G["tokens_cache_read"]/G["tokens_total"]*100)}%
+  dos tokens vieram do <b>cache</b> (10% do preço) — sem ele, o custo seria ~7× maior.</div>
  </div>
- <div class="foot">Extraído de ~/.claude/projects/…Consignado/*.jsonl</div>
+ <div class="foot">Extraído de ~/.claude/projects/…Consignado/*.jsonl · preços oficiais da API (Opus 4.8: US$ 5/25 por MTok; cache write 1,25×, read 0,1×)</div>
 </section>''')
 
 # 3b — ritmo de trabalho (heatmap dia × hora)

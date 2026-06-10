@@ -1,15 +1,15 @@
 {
- "gerado_em": "2026-06-10T15:24:09",
+ "gerado_em": "2026-06-10T17:53:18",
  "stats_globais": {
   "n_sessoes": 8,
   "periodo_inicio": "2026-06-05",
   "periodo_fim": "2026-06-10",
   "dias_distintos": 3,
-  "msgs_user": 372,
-  "msgs_assistant": 5253,
-  "comandos_bash": 1299,
-  "arquivos_escritos": 446,
-  "mb_transcripts": 39.1,
+  "msgs_user": 376,
+  "msgs_assistant": 5277,
+  "comandos_bash": 1309,
+  "arquivos_escritos": 447,
+  "mb_transcripts": 39.2,
   "atividade": {
    "2026-06-05|15": 31,
    "2026-06-05|16": 309,
@@ -81,8 +81,14 @@
    "2026-06-10|9": 118,
    "2026-06-10|10": 51,
    "2026-06-10|11": 20,
-   "2026-06-10|12": 14
-  }
+   "2026-06-10|12": 14,
+   "2026-06-10|13": 48,
+   "2026-06-10|14": 6
+  },
+  "tokens_total": 2133934867,
+  "tokens_out": 7581629,
+  "tokens_cache_read": 2072861811,
+  "custo_api_usd": 1621
  },
  "sessoes": [
   {
@@ -184,12 +190,12 @@
    "id": "f261c368",
    "arquivo": "f261c368-8f2e-4bec-9689-0680ef490c87.jsonl",
    "descricao": "Sessão final: atualização, análises e apresentações",
-   "msgs_user": 163,
-   "msgs_assistant": 1862,
-   "bash": 404,
-   "arquivos_escritos": 204,
+   "msgs_user": 167,
+   "msgs_assistant": 1886,
+   "bash": 414,
+   "arquivos_escritos": 205,
    "inicio": "2026-06-08T12:59:42.549Z",
-   "fim": "2026-06-10T15:06:49.920Z",
+   "fim": "2026-06-10T17:53:10.985Z",
    "primeiro_prompt": "nos microdados da rais em ftp://ftp.mtps.gov.br/pdet/microdados/ está sendo atualizado recentemente?",
    "pedidos": [
     "Como vai ser preciso refazer esse processo todo que fizemos de cálculo de curva de sobrevivência e estimativas de q1, q3, mediana e média, documente tudo que foi feito aqui para que você consiga refazer e ter os mesmos r …",

@@ -175,7 +175,8 @@ def processa_sessao(path):
              "descricao": SESSOES_INFO.get(sid, ""),
              "msgs_user": 0, "msgs_assistant": 0, "bash": 0,
              "arquivos_escritos": 0, "inicio": None, "fim": None,
-             "primeiro_prompt": None, "pedidos": [], "atividade": {}}
+             "primeiro_prompt": None, "pedidos": [], "atividade": {},
+             "usage": {}}
     prompts = []  # (ordem, texto) de todos os pedidos do usuário
     eventos = []  # achatado: ("user", texto) / ("atext", t) / ("tool", resumo)
     for d in iter_linhas(path):
@@ -203,6 +204,15 @@ def processa_sessao(path):
                 eventos.append(("user", tx))
         elif t == "assistant":
             stats["msgs_assistant"] += 1
+            u = d.get("message", {}).get("usage")
+            if u:
+                mod = d["message"].get("model", "?")
+                acc = stats["usage"].setdefault(
+                    mod, {"in": 0, "out": 0, "cw": 0, "cr": 0})
+                acc["in"] += u.get("input_tokens", 0)
+                acc["out"] += u.get("output_tokens", 0)
+                acc["cw"] += u.get("cache_creation_input_tokens", 0)
+                acc["cr"] += u.get("cache_read_input_tokens", 0)
             textos, tools = blocos_assistant(d)
             for tx in textos:
                 eventos.append(("atext", tx))
@@ -318,6 +328,25 @@ def main():
         for k, v in s.pop("atividade").items():
             atividade[k] = atividade.get(k, 0) + v
     g["atividade"] = atividade
+
+    # tokens e custo equivalente em preço de API (USD/MTok:
+    # input, output, cache write 1.25x, cache read 0.1x)
+    PRECOS = {"claude-opus-4-8": (5.0, 25.0, 6.25, 0.50),
+              "claude-fable-5": (10.0, 50.0, 12.50, 1.00)}
+    tk = {"in": 0, "out": 0, "cw": 0, "cr": 0}
+    custo = 0.0
+    for s in sessoes:
+        for mod, u in s.pop("usage").items():
+            for k in tk:
+                tk[k] += u[k]
+            if mod in PRECOS:
+                pi, po, pw, pr = PRECOS[mod]
+                custo += (u["in"] / 1e6 * pi + u["out"] / 1e6 * po
+                          + u["cw"] / 1e6 * pw + u["cr"] / 1e6 * pr)
+    g["tokens_total"] = sum(tk.values())
+    g["tokens_out"] = tk["out"]
+    g["tokens_cache_read"] = tk["cr"]
+    g["custo_api_usd"] = round(custo)
 
     out = {"gerado_em": datetime.now().isoformat(timespec="seconds"),
            "stats_globais": g, "sessoes": sessoes, "momentos": momentos}

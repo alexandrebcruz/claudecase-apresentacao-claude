@@ -575,19 +575,24 @@ cards = [
     (fmt_n(G["msgs_assistant"]), "respostas e ações do Claude"),
     (fmt_n(G["comandos_bash"]), "comandos executados"),
     (fmt_n(G["arquivos_escritos"]), "arquivos criados ou editados"),
+]
+CAMBIO = 5.19  # R$/US$ (cotação de 10/06/2026)
+custo_brl = round(G["custo_api_usd"] * CAMBIO)
+cards += [
     (fmt_bi(G["tokens_total"]), "tokens processados"),
-    (f'US$ {fmt_n(G["custo_api_usd"])}', "de compute, em preço de API"),
+    (f'R$ {fmt_n(custo_brl)}', "de compute, em preço de API"),
 ]
 cards_html = "".join(
     f'<div class="card"><div class="cn">{e(v)}</div>'
     f'<div class="cl">{e(l)}</div></div>' for v, l in cards)
 # card destacado: custo real = assinatura mensal
 PLANO_USD = 100  # Claude Max 5x
+plano_brl = round(PLANO_USD * CAMBIO)
 mult = round(G["custo_api_usd"] / PLANO_USD)
 cards_html += (
     f'<div class="card cdest" style="grid-column:span 2">'
     f'<div class="cn">{mult}× <span class="cnsub">o valor da assinatura</span></div>'
-    f'<div class="cl">custo real: 1 mês do plano de US$ {PLANO_USD} — '
+    f'<div class="cl">custo real: 1 mês do plano (≈ R$ {fmt_n(plano_brl)}) — '
     f'<b>sem chegar perto do limite de uso</b></div></div>')
 slides.append(f'''
 <section class="slide">
@@ -602,7 +607,7 @@ slides.append(f'''
   das sessões ({G["mb_transcripts"]} MB) — nada aqui é estimativa. Detalhe: {round(G["tokens_cache_read"]/G["tokens_total"]*100)}%
   dos tokens vieram do <b>cache</b> (10% do preço) — sem ele, o custo seria ~7× maior.</div>
  </div>
- <div class="foot">Extraído de ~/.claude/projects/…Consignado/*.jsonl · preços oficiais da API (Opus 4.8: US$ 5/25 por MTok; cache write 1,25×, read 0,1×)</div>
+ <div class="foot">Extraído de ~/.claude/projects/…Consignado/*.jsonl · preços oficiais da API (Opus 4.8: US$ 5/25 por MTok; cache write 1,25×, read 0,1×) · câmbio R$ {CAMBIO:.2f}/US$</div>
 </section>''')
 
 # 3b — ritmo de trabalho (heatmap dia × hora)

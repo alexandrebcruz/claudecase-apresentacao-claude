@@ -722,6 +722,65 @@ slides.append(f'''
  <div class="foot">Uma pessoa + Claude Code = um time de dados de ponta a ponta</div>
 </section>''')
 
+# 12b — reflexão: uma nova forma de interagir com a computação
+_eras = [
+    ("🕳️", "Cartões perfurados", "anos 1960–70",
+     "Bill Gates começou assim: cada cartão, uma linha de código — e um "
+     "erro custava a pilha inteira"),
+    ("⌨️", "Teclado e terminal", "anos 1970",
+     "texto verde no CRT: a máquina responde em segundos, não em dias"),
+    ("🖱️", "Mouse e janelas", "1984 · Macintosh",
+     "a computação ganha rosto: apontar e clicar, qualquer pessoa usa"),
+    ("👆", "Touch", "2007 · smartphone",
+     "o dedo vira o cursor: o computador cabe no bolso"),
+    ("💬", "Conversa", "hoje · IA agêntica",
+     "você diz o que quer, em português — o agente planeja, executa e "
+     "valida"),
+]
+_ecards = []
+for i, (ic, tt, ano, cap) in enumerate(_eras):
+    destaque = ' edest' if i == len(_eras) - 1 else ''
+    _ecards.append(
+        f'<div class="ecard{destaque}"><div class="eic">{ic}</div>'
+        f'<div class="ett">{e(tt)}</div><div class="eano">{e(ano)}</div>'
+        f'<div class="ecap">{e(cap)}</div></div>')
+    if i < len(_eras) - 1:
+        _ecards.append('<div class="earr">→</div>')
+
+_langs = [
+    ("Binário", "10110000 01100001", ""),
+    ("Assembly", "MOV AH,09h · INT 21h", ""),
+    ("C", 'printf("Olá, mundo");', ""),
+    ("Python", 'print("Olá, mundo")', ""),
+    ("Português", "“faça uma apresentação com os resultados do modelo”",
+     " ldest"),
+]
+_lchips = []
+for i, (nome, cod, destaque) in enumerate(_langs):
+    _lchips.append(
+        f'<div class="lchip{destaque}"><div class="lnm">{e(nome)}</div>'
+        f'<div class="lcd">{e(cod)}</div></div>')
+    if i < len(_langs) - 1:
+        _lchips.append('<div class="earr">→</div>')
+
+slides.append(f'''
+<section class="slide">
+ {header("REFLEXÃO", "Uma nova forma de interagir com a computação")}
+ <div class="body" style="justify-content:center;gap:calc(var(--u)*1.5)">
+  <div class="elbl">COMO FALAMOS COM A MÁQUINA</div>
+  <div class="evo">{"".join(_ecards)}</div>
+  <div class="rev">
+   <div class="elbl">E O QUE FALAMOS PARA ELA — A LINGUAGEM TAMBÉM SUBIU DE NÍVEL</div>
+   <div class="evo">{"".join(_lchips)}</div>
+  </div>
+  {rev('<div class="why"><span class="wlbl">A REFLEXÃO</span> '
+       'Cada salto aproximou a máquina da linguagem humana — do furo no cartão ao clique, '
+       'do clique ao toque. Com as IAs agênticas, interface e linguagem de programação '
+       'convergem para a mesma coisa: <b>a conversa</b>. Este projeto inteiro é um exemplo disso.</div>')}
+ </div>
+ <div class="foot">60 anos de computação: a máquina veio até a nossa língua — não o contrário</div>
+</section>''')
+
 # 13 — encerramento
 slides.append(f'''
 <section class="slide cover">
@@ -948,6 +1007,37 @@ transform:translateY(-50%);width:calc(var(--u)*1.4);
 height:calc(var(--u)*1.4);border-radius:50%;background:var(--blue);
 color:#fff;font-weight:700;font-size:calc(var(--u)*0.8);text-align:center;
 line-height:calc(var(--u)*1.4)}
+/* evolução (slide reflexão) */
+.elbl{color:#b07b10;font-weight:700;letter-spacing:.1em;
+font-size:calc(var(--u)*0.85);margin-bottom:calc(var(--u)*0.5)}
+.evo{display:flex;align-items:stretch;gap:calc(var(--u)*0.5);
+margin-bottom:calc(var(--u)*1.0)}
+.evo .earr{align-self:center;color:var(--orange);
+font-size:calc(var(--u)*1.6);font-weight:700;flex-shrink:0}
+.ecard{flex:1;background:#f4f7fb;border:1px solid #dfe6f0;border-radius:10px;
+padding:calc(var(--u)*0.9) calc(var(--u)*0.7);text-align:center;
+display:flex;flex-direction:column;gap:calc(var(--u)*0.3);min-width:0}
+.ecard.edest{background:var(--navy);border-color:var(--navy)}
+.ecard.edest .ett{color:#fff}
+.ecard.edest .ecap{color:#cdd9ea}
+.ecard.edest .eano{background:var(--orange);color:var(--navy)}
+.eic{font-size:calc(var(--u)*2.6);line-height:1.1}
+.ett{font-weight:700;color:var(--navy);font-size:calc(var(--u)*1.05)}
+.eano{align-self:center;background:#e2e9f3;color:#3b5a82;border-radius:99px;
+font-weight:700;font-size:calc(var(--u)*0.72);
+padding:calc(var(--u)*0.12) calc(var(--u)*0.7)}
+.ecap{color:var(--gray);font-size:calc(var(--u)*0.82);line-height:1.35}
+.lchip{flex:1;background:#0d1626;border-radius:8px;min-width:0;
+padding:calc(var(--u)*0.6) calc(var(--u)*0.7);text-align:center;
+display:flex;flex-direction:column;gap:calc(var(--u)*0.25);
+justify-content:center}
+.lchip.ldest{background:var(--orange)}
+.lchip.ldest .lnm{color:var(--navy)}
+.lchip.ldest .lcd{color:var(--navy);font-weight:700}
+.lnm{color:var(--lblue);font-weight:700;letter-spacing:.08em;
+font-size:calc(var(--u)*0.72)}
+.lcd{color:#c9d6e8;font-family:'Cascadia Code',Consolas,Menlo,monospace;
+font-size:calc(var(--u)*0.85);overflow-wrap:anywhere;line-height:1.3}
 /* passos */
 .steps{display:flex;align-items:center;gap:calc(var(--u)*1.0);
 justify-content:center;flex-shrink:0}

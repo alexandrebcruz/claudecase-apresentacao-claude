@@ -9,7 +9,17 @@ import json
 import os
 import re
 import glob
-from datetime import datetime
+from datetime import datetime, timedelta
+
+FUSO = timedelta(hours=-3)  # UTC → horário de Brasília
+
+
+def ts_local(ts):
+    """ISO UTC → datetime local (BRT)."""
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")) + FUSO
+    except (ValueError, AttributeError):
+        return None
 
 TRANSCRIPT_DIR = os.path.expanduser(
     "~/.claude/projects/-mnt-d-Projetos-Consignado")
@@ -17,6 +27,26 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "dados_apresentacao.json")
 
 # ---------------------------------------------------------------- helpers
+
+def texto_tool_result(msg):
+    """Texto do resultado de ferramenta (mensagens type=user com
+    tool_result), para mostrar o output real dos comandos."""
+    c = msg.get("message", {}).get("content")
+    if not isinstance(c, list):
+        return None
+    partes = []
+    for b in c:
+        if not isinstance(b, dict) or b.get("type") != "tool_result":
+            continue
+        cc = b.get("content")
+        if isinstance(cc, str):
+            partes.append(cc)
+        elif isinstance(cc, list):
+            partes += [x.get("text", "") for x in cc
+                       if isinstance(x, dict) and x.get("type") == "text"]
+    t = "\n".join(p for p in partes if p).strip()
+    return t or None
+
 
 def texto_user(msg):
     """Texto de uma mensagem do usuário real (ignora tool_results/lembretes)."""
@@ -145,7 +175,7 @@ def processa_sessao(path):
              "descricao": SESSOES_INFO.get(sid, ""),
              "msgs_user": 0, "msgs_assistant": 0, "bash": 0,
              "arquivos_escritos": 0, "inicio": None, "fim": None,
-             "primeiro_prompt": None, "pedidos": []}
+             "primeiro_prompt": None, "pedidos": [], "atividade": {}}
     prompts = []  # (ordem, texto) de todos os pedidos do usuário
     eventos = []  # achatado: ("user", texto) / ("atext", t) / ("tool", resumo)
     for d in iter_linhas(path):
@@ -154,8 +184,16 @@ def processa_sessao(path):
             if stats["inicio"] is None:
                 stats["inicio"] = ts
             stats["fim"] = ts
+            dt = ts_local(ts)
+            if dt:
+                chave = f"{dt.date().isoformat()}|{dt.hour}"
+                stats["atividade"][chave] = \
+                    stats["atividade"].get(chave, 0) + 1
         t = d.get("type")
         if t == "user":
+            tr = texto_tool_result(d)
+            if tr:
+                eventos.append(("tres", tr[:900]))
             tx = texto_user(d)
             if tx:
                 stats["msgs_user"] += 1
@@ -202,16 +240,24 @@ def acha_momento(eventos, padrao):
             continue
         prompt = payload
         resposta, tools = [], []
+        exemplo_exec = None
+        ultimo_bash = None
         for tipo2, p2 in eventos[i + 1:]:
             if tipo2 == "user":
                 break
             if tipo2 == "atext":
                 resposta.append(p2)
-            elif tipo2 == "tool" and len(tools) < 4:
-                tools.append({"tool": p2[0], "alvo": p2[1][:200]})
+            elif tipo2 == "tool":
+                if len(tools) < 4:
+                    tools.append({"tool": p2[0], "alvo": p2[1][:200]})
+                if p2[0] == "Bash":
+                    ultimo_bash = p2[1]
+            elif tipo2 == "tres" and exemplo_exec is None and ultimo_bash:
+                exemplo_exec = {"cmd": ultimo_bash[:300], "output": p2}
         return {"prompt": prompt,
                 "resposta": "\n\n".join(resposta),
-                "tools": tools}
+                "tools": tools,
+                "exemplo_exec": exemplo_exec}
     return None
 
 # ---------------------------------------------------------------- main
@@ -246,6 +292,7 @@ def main():
             "prompt": m["prompt"],
             "resposta": m["resposta"],
             "tools": m["tools"],
+            "exemplo_exec": m.get("exemplo_exec"),
         })
         print(f"[ok] momento '{mid}': prompt {len(m['prompt'])} ch, "
               f"resposta {len(m['resposta'])} ch, {len(m['tools'])} tools")
@@ -264,6 +311,13 @@ def main():
             os.path.getsize(os.path.join(TRANSCRIPT_DIR, s["arquivo"]))
             for s in sessoes) / 1e6, 1),
     }
+
+    # atividade global por dia/hora (horário de Brasília)
+    atividade = {}
+    for s in sessoes:
+        for k, v in s.pop("atividade").items():
+            atividade[k] = atividade.get(k, 0) + v
+    g["atividade"] = atividade
 
     out = {"gerado_em": datetime.now().isoformat(timespec="seconds"),
            "stats_globais": g, "sessoes": sessoes, "momentos": momentos}

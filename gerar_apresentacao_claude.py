@@ -26,6 +26,10 @@ G = DADOS["stats_globais"]
 SESSOES = DADOS["sessoes"]
 MOMENTOS = {m["id"]: m for m in DADOS["momentos"]}
 
+_fpath = os.path.join(BASE, "fonts_dejavu.css")
+FONTS_CSS = open(_fpath, encoding="utf-8").read() \
+    if os.path.exists(_fpath) else ""
+
 MESES = {"01": "jan", "02": "fev", "03": "mar", "04": "abr", "05": "mai",
          "06": "jun", "07": "jul", "08": "ago", "09": "set", "10": "out",
          "11": "nov", "12": "dez"}
@@ -402,6 +406,14 @@ def fig_img(nome, cap):
     return figbox(f'<img src="{img_b64(nome)}" alt="">', cap, real=True)
 
 
+def rev(html_str):
+    """Marca um bloco para revelação progressiva (aparece a cada avanço)."""
+    return html_str.replace('<div class="row rc">',
+                            '<div class="row rc rev">', 1) \
+        .replace('<div class="term">', '<div class="term rev">', 1) \
+        .replace('<div class="why">', '<div class="why rev">', 1)
+
+
 def slide_momento(num, total, m, kicker, fig_html, resp_ch=520):
     return f'''
 <section class="slide">
@@ -411,18 +423,81 @@ def slide_momento(num, total, m, kicker, fig_html, resp_ch=520):
    <div class="colL">
     <div class="chatcol">
      {chat_user(m["prompt"])}
-     {chat_claude(m["resposta"], resp_ch)}
-     {term_block(m["tools"])}
+     {rev(chat_claude(m["resposta"], resp_ch))}
+     {rev(term_block(m["tools"]))}
     </div>
    </div>
    <div class="colR">{fig_html}</div>
   </div>
-  <div class="why"><span class="wlbl">POR QUE ISSO IMPORTA</span> {e(m["valor"])}
-   <span class="src">sessão {m["sessao"]} · {fmt_data(m["data"])} · trecho verbatim do histórico</span>
-  </div>
+  {rev(f'<div class="why"><span class="wlbl">POR QUE ISSO IMPORTA</span> {e(m["valor"])}'
+       f'<span class="src">sessão {m["sessao"]} · {fmt_data(m["data"])} · trecho verbatim do histórico</span></div>')}
  </div>
  <div class="foot">Momento {num} de {total} · conversas reais extraídas das sessões do Claude Code</div>
 </section>'''
+
+
+# ----------------------------------------------- gráficos SVG com dados
+
+def svg_barras_sessoes():
+    """Barras horizontais: mensagens por sessão (dados reais)."""
+    dados = [(s, s["msgs_user"] + s["msgs_assistant"]) for s in SESSOES]
+    mx = max(v for _, v in dados)
+    H = 26 * len(dados) + 30
+    rows = []
+    for i, (s, v) in enumerate(dados):
+        y = 8 + i * 26
+        w = max(4, v / mx * 192)
+        cor = "#f4a722" if v == mx else "#3b7dba"
+        rows.append(
+            f'<text x="106" y="{y+13}" text-anchor="end" font-size="8.5" '
+            f'fill="#5b6675">{fmt_data(s["inicio"])} · {s["id"][:4]}</text>'
+            f'<rect x="112" y="{y}" width="{w:.0f}" height="17" rx="3" '
+            f'fill="{cor}"/>'
+            f'<text x="{112+w+5:.0f}" y="{y+13}" font-size="9" '
+            f'font-weight="700" fill="#14233f">{fmt_n(v)}</text>')
+    return (f'<svg viewBox="0 0 360 {H}" '
+            f'xmlns="http://www.w3.org/2000/svg">{"".join(rows)}'
+            f'<text x="180" y="{H-6}" text-anchor="middle" font-size="9" '
+            f'fill="#5b6675">mensagens trocadas por sessão (reais)</text></svg>')
+
+
+def svg_heatmap():
+    """Heatmap dia × hora da atividade real (BRT)."""
+    a = G.get("atividade", {})
+    dias = sorted({k.split("|")[0] for k in a})
+    mx = max(a.values()) if a else 1
+    CW, CH, L, T = 12.4, 22, 52, 26
+    W, H = L + 24 * CW + 10, T + len(dias) * CH + 34
+    el = []
+    for h in range(0, 24, 2):
+        el.append(f'<text x="{L + (h + 0.5) * CW:.1f}" y="{T-8}" '
+                  f'text-anchor="middle" font-size="8.5" '
+                  f'fill="#5b6675">{h}h</text>')
+    for r, d in enumerate(dias):
+        y = T + r * CH
+        el.append(f'<text x="{L-6}" y="{y+CH/2+3:.0f}" text-anchor="end" '
+                  f'font-size="9" fill="#14233f" font-weight="700">'
+                  f'{d[8:10]}/{MESES.get(d[5:7], d[5:7])}</text>')
+        for h in range(24):
+            v = a.get(f"{d}|{h}", 0)
+            if v == 0:
+                fill, op = "#eef2f8", 1
+            else:
+                t = (v / mx) ** 0.5
+                # interpola navy → laranja
+                c1, c2 = (20, 35, 63), (244, 167, 34)
+                rgb = tuple(round(c1[j] + (c2[j] - c1[j]) * t)
+                            for j in range(3))
+                fill, op = f"rgb({rgb[0]},{rgb[1]},{rgb[2]})", 1
+            el.append(f'<rect x="{L + h * CW:.1f}" y="{y}" '
+                      f'width="{CW-1.6:.1f}" height="{CH-3}" rx="2.5" '
+                      f'fill="{fill}"><title>{d} {h}h — {v} eventos'
+                      f'</title></rect>')
+    el.append(f'<text x="{W/2:.0f}" y="{H-8}" text-anchor="middle" '
+              f'font-size="9" fill="#5b6675">cada célula = 1 hora · cor = '
+              f'volume de mensagens/ações (máx. {fmt_n(mx)}/h)</text>')
+    return (f'<svg viewBox="0 0 {W:.0f} {H:.0f}" '
+            f'xmlns="http://www.w3.org/2000/svg">{"".join(el)}</svg>')
 
 
 # ------------------------------------------------------------ slides
@@ -484,12 +559,30 @@ slides.append(f'''
 <section class="slide">
  {header("NÚMEROS REAIS", "O que aconteceu nas sessões — medido, não estimado")}
  <div class="body">
-  <div class="cards">{cards_html}</div>
+  <div class="cols">
+   <div class="colL"><div class="cards c2">{cards_html}</div></div>
+   <div class="colR">{figbox(svg_barras_sessoes(),
+        "Volume de mensagens por sessão — as duas grandes concentram o planejamento e a entrega final")}</div>
+  </div>
   <div class="why"><span class="wlbl">FONTE</span> Estatísticas extraídas diretamente dos
   {G["mb_transcripts"]} MB de histórico das sessões do Claude Code deste projeto — nada aqui é estimativa.</div>
  </div>
  <div class="foot">Extraído de ~/.claude/projects/…Consignado/*.jsonl</div>
 </section>''')
+
+# 3b — ritmo de trabalho (heatmap dia × hora)
+slides.append(f'''
+<section class="slide">
+ {header("RITMO DE TRABALHO", "Quando o trabalho aconteceu — hora a hora")}
+ <div class="body">
+  <div class="figbox" style="flex:1">{{0}}</div>
+  <div class="why"><span class="wlbl">O QUE ISSO MOSTRA</span> Picos longos e contínuos —
+  inclusive treinos e sincronizações rodando em background enquanto outras frentes avançavam.
+  Um analista sozinho não sustenta esse ritmo de execução em paralelo.</div>
+ </div>
+ <div class="foot">Atividade real (mensagens e ações por hora, horário de Brasília), extraída dos timestamps do histórico</div>
+</section>'''.format(f'<div class="figin">{svg_heatmap()}</div>'
+                     '<div class="figcap">Cada linha é um dia; cada célula, uma hora — navy → laranja = mais atividade</div>'))
 
 # 4 — timeline interativa
 sess_js = []
@@ -514,8 +607,17 @@ slides.append(f'''
  <div class="foot">Tamanho dos blocos proporcional ao volume de mensagens da sessão</div>
 </section>''')
 
-# 5 — anatomia de um turno (usa o momento "ftp")
+# 5 — anatomia de um turno (usa o momento "ftp", com output real)
 ftp = MOMENTOS["ftp"]
+_ex = ftp.get("exemplo_exec") or {}
+_out = (_ex.get("output") or "").split("---EXIT")[0].strip()
+_out_linhas = "".join(f'<div class="to">{e(l)}</div>'
+                      for l in _out.split("\n")[:7])
+exec_term = (f'<div class="term rev"><div class="tl"><span class="tt">Bash'
+             f'</span> <span class="tp">$</span> {e(_ex.get("cmd", ""))}'
+             f'</div>{_out_linhas}'
+             f'<div class="to tor">← output real que o Claude leu e analisou'
+             f'</div></div>') if _ex else term_block(ftp["tools"], 2)
 slides.append(f'''
 <section class="slide">
  {header("COMO FUNCIONA", "A anatomia de uma interação")}
@@ -529,11 +631,11 @@ slides.append(f'''
   </div>
   <div class="chatcol">
    {chat_user(ftp["prompt"])}
-   {term_block(ftp["tools"], 2)}
-   {chat_claude(ftp["resposta"], 380)}
+   {exec_term}
+   {rev(chat_claude(ftp["resposta"], 380))}
   </div>
-  <div class="why"><span class="wlbl">EXEMPLO REAL</span> {e(ftp["valor"])}
-   <span class="src">sessão {ftp["sessao"]} · {fmt_data(ftp["data"])}</span></div>
+  {rev(f'<div class="why"><span class="wlbl">EXEMPLO REAL</span> {e(ftp["valor"])}'
+       f'<span class="src">sessão {ftp["sessao"]} · {fmt_data(ftp["data"])}</span></div>')}
  </div>
  <div class="foot">O Claude não responde de memória: ele conecta no FTP, lista as datas e prova a resposta</div>
 </section>''')
@@ -566,6 +668,36 @@ KICKERS = {
 for i, mid in enumerate(ORDEM, 1):
     slides.append(slide_momento(i, len(ORDEM), MOMENTOS[mid],
                                 KICKERS[mid], FIGS_MOMENTO[mid]))
+
+# 11b — o aviso que evitou problema (trecho verbatim do alerta da RAIS)
+_alerta = ftp["resposta"]
+_pos = _alerta.find("## Pontos de atenção")
+_alerta = _alerta[_pos:] if _pos >= 0 else _alerta[-1400:]
+slides.append(f'''
+<section class="slide">
+ {header("BÔNUS · PROATIVIDADE", "O aviso que evitou um problema")}
+ <div class="body">
+  <div class="cols">
+   <div class="colL">
+    <div class="chatcol">
+     {chat_claude(_alerta, 900)}
+    </div>
+   </div>
+   <div class="colR">
+    <ul class="big">
+     <li><b>Ninguém perguntou isso.</b> O pedido era só "o FTP está atualizado?"</li>
+     <li>O Claude notou que a <b>RAIS 2023 foi republicada</b> — exatamente o ano usado no holdout do modelo.</li>
+     <li>E que <b>2024/2025 já existem</b> — abrindo caminho para um novo holdout out-of-time.</li>
+     <li>Riscos apontados <b>antes</b> de virarem resultados errados.</li>
+    </ul>
+   </div>
+  </div>
+  {rev(f'<div class="why"><span class="wlbl">POR QUE ISSO IMPORTA</span> '
+       f'Um assistente que executa é útil; um que antecipa problemas muda o patamar da análise.'
+       f'<span class="src">sessão {ftp["sessao"]} · {fmt_data(ftp["data"])} · trecho verbatim do histórico</span></div>')}
+ </div>
+ <div class="foot">Alerta espontâneo emitido na resposta sobre o FTP da RAIS</div>
+</section>''')
 
 # 12 — o que não seria viável (bullets + SVG)
 slides.append(f'''
@@ -616,16 +748,33 @@ HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <title>Como o Claude construiu o modelo do Consignado</title>
 <style>
+@@FONTS@@
 :root{--u:min(1vw,1.7778vh);--navy:#14233f;--ink:#1b2430;--gray:#5b6675;
 --orange:#f4a722;--blue:#3b7dba;--lblue:#9fc0e8;}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:#0d1626;
-font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--ink)}
+font-family:'DejaVu Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+color:var(--ink)}
 #stage{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
 width:min(100vw,177.78vh);height:min(56.25vw,100vh);background:#fff;
 overflow:hidden;box-shadow:0 0 calc(var(--u)*4) rgba(0,0,0,.6)}
 .slide{position:absolute;inset:0;display:none;background:#fff}
-.slide.active{display:block}
+.slide.active{display:block;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+/* revelação progressiva */
+.rev{opacity:0;transform:translateY(calc(var(--u)*0.8));
+transition:opacity .35s ease,transform .35s ease}
+.rev.shown{opacity:1;transform:none}
+/* "digitando…" */
+.typing .rsh,.typing .rfull,.typing .more{display:none}
+.typing::after{content:'';display:inline-block;
+width:calc(var(--u)*0.55);height:calc(var(--u)*0.55);border-radius:50%;
+background:var(--orange);
+box-shadow:calc(var(--u)*1.0) 0 0 var(--orange),
+ calc(var(--u)*2.0) 0 0 var(--orange);
+animation:tdots .9s infinite ease-in-out;
+margin:calc(var(--u)*0.2) calc(var(--u)*0.2)}
+@keyframes tdots{0%,100%{opacity:.25}50%{opacity:1}}
 /* header */
 .hb{position:absolute;top:0;left:0;right:0;height:14%;background:var(--navy);
 border-left:calc(var(--u)*0.55) solid var(--orange);display:flex;
@@ -692,6 +841,9 @@ flex-direction:column;justify-content:center;gap:calc(var(--u)*0.5)}
 .cn{font-size:calc(var(--u)*3.1);font-weight:700;color:var(--navy);
 font-variant-numeric:tabular-nums}
 .cl{font-size:calc(var(--u)*1.05);color:var(--gray)}
+.cards.c2{grid-template-columns:repeat(2,1fr);gap:calc(var(--u)*0.9)}
+.cards.c2 .cn{font-size:calc(var(--u)*2.5)}
+.cards.c2 .card{padding:calc(var(--u)*1.0) calc(var(--u)*0.6)}
 /* chat */
 .chatcol{display:flex;flex-direction:column;gap:calc(var(--u)*0.7);
 flex:1;min-height:0;overflow:auto;padding-right:calc(var(--u)*0.5)}
@@ -744,6 +896,10 @@ font-size:calc(var(--u)*0.9);color:#c9d6e8;flex-shrink:0}
 line-height:1.7}
 .tt{color:var(--orange);font-weight:700}
 .tp{color:#5b8bc4}
+.to{color:#8fa3bd;white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis;line-height:1.55;
+padding-left:calc(var(--u)*1.4)}
+.tor{color:var(--orange);font-style:italic;padding-top:calc(var(--u)*0.3)}
 /* faixa de valor */
 .why{background:#fdf6e7;border:1px solid #f0ddb0;border-radius:8px;
 padding:calc(var(--u)*0.8) calc(var(--u)*1.1);font-size:calc(var(--u)*1.05);
@@ -817,6 +973,28 @@ cursor:pointer;opacity:.85;line-height:1}
 font-variant-numeric:tabular-nums;background:rgba(255,255,255,.88);
 border:1px solid #dfe6f0;
 border-radius:6px;padding:calc(var(--u)*0.2) calc(var(--u)*0.5)}
+/* índice de slides (dots) */
+#dots{position:absolute;left:50%;bottom:0.6%;transform:translateX(-50%);
+display:flex;gap:calc(var(--u)*0.55);z-index:50;align-items:center}
+.dot{width:calc(var(--u)*0.75);height:calc(var(--u)*0.75);
+border-radius:50%;border:none;background:#b9c5d6;cursor:pointer;
+padding:0;transition:transform .15s}
+.dot:hover{transform:scale(1.5)}
+.dot.on{background:var(--orange);transform:scale(1.35)}
+/* barra de progresso */
+#pbar{position:absolute;left:0;bottom:0;height:calc(var(--u)*0.35);
+background:var(--orange);width:0;z-index:60;transition:width .25s ease}
+/* impressão: um slide por página */
+@media print{
+ html,body{background:#fff;height:auto}
+ #stage{position:static;width:100%;height:auto;transform:none;
+  box-shadow:none}
+ .slide{display:block!important;position:relative;width:100%;
+  aspect-ratio:16/9;page-break-after:always;overflow:hidden;
+  animation:none}
+ .rev{opacity:1!important;transform:none!important}
+ #nav,#dots,#pbar{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -827,22 +1005,51 @@ border-radius:6px;padding:calc(var(--u)*0.2) calc(var(--u)*0.5)}
  <div id="counter">1 / 1</div>
  <button class="nbtn" id="bnext" onclick="go(1)" title="Próximo (→)">›</button>
 </div>
+<div id="dots"></div>
+<div id="pbar"></div>
 </div>
 <script>
 const SESS=@@SESS@@;
 const slides=[...document.querySelectorAll('.slide')];let cur=0;
 const counter=document.getElementById('counter');
 const bp=document.getElementById('bprev'),bn=document.getElementById('bnext');
+const pbar=document.getElementById('pbar');
+const dotsBox=document.getElementById('dots');
+const TITULOS=slides.map(s=>{
+ const t=s.querySelector('.ttl,.ctit');
+ return t?t.textContent.trim().slice(0,60):'';});
+slides.forEach((s,i)=>{
+ const d=document.createElement('button');d.className='dot';
+ d.title=(i+1)+' · '+TITULOS[i];d.onclick=()=>show(i);
+ dotsBox.appendChild(d);});
 function show(n){cur=Math.max(0,Math.min(slides.length-1,n));
  slides.forEach((s,i)=>s.classList.toggle('active',i===cur));
  counter.textContent=(cur+1)+' / '+slides.length;
- bp.disabled=cur===0;bn.disabled=cur===slides.length-1;}
-function go(d){show(cur+d);}
+ bp.disabled=cur===0;bn.disabled=cur===slides.length-1;
+ pbar.style.width=((cur+1)/slides.length*100)+'%';
+ [...dotsBox.children].forEach((d,i)=>d.classList.toggle('on',i===cur));
+ /* rearma a revelação progressiva ao entrar no slide */
+ slides[cur].querySelectorAll('.rev').forEach(r=>r.classList.remove('shown'));}
+function revela(){
+ const r=slides[cur].querySelector('.rev:not(.shown)');
+ if(!r)return false;
+ r.classList.add('shown');
+ const b=r.classList.contains('bub')?r:r.querySelector('.bc');
+ if(b&&b.classList.contains('bc')){
+  b.classList.add('typing');
+  setTimeout(()=>b.classList.remove('typing'),700);}
+ return true;}
+function go(d){
+ if(d>0&&revela())return;
+ show(cur+d);}
 document.addEventListener('keydown',e=>{
- if(e.key==='ArrowRight'||e.key==='PageDown')go(1);
+ if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' ')go(1);
  else if(e.key==='ArrowLeft'||e.key==='PageUp')go(-1);
  else if(e.key==='Home')show(0);
- else if(e.key==='End')show(slides.length-1);});
+ else if(e.key==='End')show(slides.length-1);
+ else if(e.key==='f'||e.key==='F'){
+  if(document.fullscreenElement)document.exitFullscreen();
+  else document.documentElement.requestFullscreen();}});
 show(0);
 /* expandir resposta completa */
 function expande(btn){
@@ -888,8 +1095,8 @@ function esc(t){const d=document.createElement('div');
 </body>
 </html>"""
 
-html_final = HTML.replace("@@SLIDES@@", SLIDES_HTML).replace(
-    "@@SESS@@", SESS_JSON)
+html_final = HTML.replace("@@FONTS@@", FONTS_CSS).replace(
+    "@@SLIDES@@", SLIDES_HTML).replace("@@SESS@@", SESS_JSON)
 
 with open(OUT, "w", encoding="utf-8") as f:
     f.write(html_final)

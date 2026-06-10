@@ -1,15 +1,88 @@
 {
- "gerado_em": "2026-06-10T13:45:28",
+ "gerado_em": "2026-06-10T15:24:09",
  "stats_globais": {
   "n_sessoes": 8,
   "periodo_inicio": "2026-06-05",
   "periodo_fim": "2026-06-10",
   "dias_distintos": 3,
-  "msgs_user": 368,
-  "msgs_assistant": 5238,
-  "comandos_bash": 1293,
+  "msgs_user": 372,
+  "msgs_assistant": 5253,
+  "comandos_bash": 1299,
   "arquivos_escritos": 446,
-  "mb_transcripts": 39.1
+  "mb_transcripts": 39.1,
+  "atividade": {
+   "2026-06-05|15": 31,
+   "2026-06-05|16": 309,
+   "2026-06-05|17": 296,
+   "2026-06-05|18": 84,
+   "2026-06-05|19": 222,
+   "2026-06-05|20": 339,
+   "2026-06-06|11": 38,
+   "2026-06-06|12": 3,
+   "2026-06-06|13": 95,
+   "2026-06-06|17": 15,
+   "2026-06-06|20": 238,
+   "2026-06-06|21": 171,
+   "2026-06-06|22": 43,
+   "2026-06-06|23": 94,
+   "2026-06-07|0": 63,
+   "2026-06-07|2": 106,
+   "2026-06-07|7": 20,
+   "2026-06-07|8": 47,
+   "2026-06-07|9": 90,
+   "2026-06-07|10": 83,
+   "2026-06-07|11": 64,
+   "2026-06-07|12": 85,
+   "2026-06-07|13": 49,
+   "2026-06-07|14": 70,
+   "2026-06-07|15": 193,
+   "2026-06-07|16": 224,
+   "2026-06-07|17": 296,
+   "2026-06-07|18": 240,
+   "2026-06-07|19": 164,
+   "2026-06-07|20": 77,
+   "2026-06-07|21": 34,
+   "2026-06-07|22": 105,
+   "2026-06-07|23": 64,
+   "2026-06-08|0": 76,
+   "2026-06-08|1": 61,
+   "2026-06-08|2": 56,
+   "2026-06-08|3": 48,
+   "2026-06-08|5": 332,
+   "2026-06-08|6": 254,
+   "2026-06-08|7": 248,
+   "2026-06-08|8": 138,
+   "2026-06-08|9": 59,
+   "2026-06-05|23": 62,
+   "2026-06-06|10": 98,
+   "2026-06-08|10": 35,
+   "2026-06-08|11": 75,
+   "2026-06-08|12": 45,
+   "2026-06-08|13": 66,
+   "2026-06-08|15": 239,
+   "2026-06-08|14": 288,
+   "2026-06-08|16": 156,
+   "2026-06-08|17": 287,
+   "2026-06-08|18": 227,
+   "2026-06-09|9": 172,
+   "2026-06-09|10": 236,
+   "2026-06-09|11": 5,
+   "2026-06-09|12": 35,
+   "2026-06-09|13": 151,
+   "2026-06-09|14": 140,
+   "2026-06-09|15": 185,
+   "2026-06-09|17": 45,
+   "2026-06-09|18": 63,
+   "2026-06-09|19": 300,
+   "2026-06-09|20": 250,
+   "2026-06-09|21": 158,
+   "2026-06-09|22": 52,
+   "2026-06-10|8": 113,
+   "2026-06-10|9": 118,
+   "2026-06-10|10": 51,
+   "2026-06-10|11": 20,
+   "2026-06-10|12": 14
+  }
  },
  "sessoes": [
   {
@@ -111,12 +184,12 @@
    "id": "f261c368",
    "arquivo": "f261c368-8f2e-4bec-9689-0680ef490c87.jsonl",
    "descricao": "Sessão final: atualização, análises e apresentações",
-   "msgs_user": 159,
-   "msgs_assistant": 1847,
-   "bash": 398,
+   "msgs_user": 163,
+   "msgs_assistant": 1862,
+   "bash": 404,
    "arquivos_escritos": 204,
    "inicio": "2026-06-08T12:59:42.549Z",
-   "fim": "2026-06-10T13:37:11.264Z",
+   "fim": "2026-06-10T15:06:49.920Z",
    "primeiro_prompt": "nos microdados da rais em ftp://ftp.mtps.gov.br/pdet/microdados/ está sendo atualizado recentemente?",
    "pedidos": [
     "Como vai ser preciso refazer esse processo todo que fizemos de cálculo de curva de sobrevivência e estimativas de q1, q3, mediana e média, documente tudo que foi feito aqui para que você consiga refazer e ter os mesmos r …",
@@ -168,7 +241,11 @@
      "tool": "Write",
      "alvo": "/mnt/d/Projetos/Consignado/requirements.txt"
     }
-   ]
+   ],
+   "exemplo_exec": {
+    "cmd": "pwd && ls -la",
+    "output": "/mnt/d/Projetos/Consignado\ntotal 0\ndrwxrwxrwx 1 coder coder 512 Jun  5 16:36 .\ndrwxrwxrwx 1 coder coder 512 Apr 29 18:24 .."
+   }
   },
   {
    "id": "pgfn",
@@ -178,7 +255,8 @@
    "data": "2026-06-05",
    "prompt": "com os dados públicos do pgfn tem como saber se a empresa já constou como devedora de tributos previdenciários ou fgts?",
    "resposta": "Sim, dá para fazer isso com os dados abertos da PGFN — inclusive separando especificamente débitos **previdenciários** e de **FGTS**. Deixa eu explicar como funciona.\n\n## Onde estão os dados\n\nA PGFN publica a base completa da **Dívida Ativa da União e do FGTS** como dados abertos, atualizada trimestralmente:\n\n🔗 `https://www.gov.br/pgfn/pt-br/assuntos/divida-ativa-da-uniao/dados-abertos/dados-abertos`\n(também disturbuído via `dadosabertos.pgfn.gov.br`)\n\nOs arquivos (CSV) vêm divididos justamente nas categorias que você precisa:\n\n| Arquivo | O que cobre |\n|---|---|\n| **Dívida Ativa da União – Previdenciário** | contribuições previdenciárias (INSS) |\n| **Dívida Ativa da União – Não Previdenciário** | demais tributos federais |\n| **Dívida Ativa do FGTS** | débitos de FGTS inscritos |\n\nOu seja, se um CNPJ aparece no arquivo \"Previdenciário\" ou no de \"FGTS\", a empresa **constou/consta** como devedora daquele tipo de débito.\n\n## O que cada registro traz\n\nOs campos típicos permitem identificar e classificar:\n\n- **CPF/CNPJ do devedor** — o CNPJ vem completo (CPF de pessoa física vem mascarado por LGPD)\n- Nome/razão social\n- Número da inscrição em dívida ativa\n- **Tipo / situação da inscrição** (ativa, suspensa, parcelada, garantida etc.)\n- Valor consolidado\n- Data de inscrição\n- Indicador do tipo de crédito (que é o que separa previdenciário/FGTS/demais)\n\n## Pontos de atenção importantes\n\n1. **\"Já constou\" x \"consta hoje\"**: os dados abertos refletem um **retrato trimestral** do estoque atual da dívida ativa. Se a empresa quitou/parcelou e a inscrição foi baixada, ela pode **não aparecer mais** no arquivo mais recente. Para reconstituir histórico, você precisaria comparar **snapshots de trimestres anteriores** (a PGFN mantém versões antigas).\n\n2. **Só dívida ativa**: o dado cobre débitos **já inscritos em dívida ativa** (após não pagamento no âmbito da Receita/FGTS). Débitos ainda em cobrança administrativa na Receita Federal **não** estão aí.\n\n3. **Lista de Devedores (alternativa mais simples)**: desde a Lei 14.711/2023, a PGFN mantém um portal de **Lista de Devedores** (`listadevedores.pgfn.gov.br`) com consulta por CNPJ, que também classifica a natureza do débito — útil para consulta pontual sem baixar a base inteira.\n\n4. **Certidão**: para uma confirmação oficial e atual da situação de uma empresa específica, a via formal é a **Certidão de Regularidade Fiscal (CND/CPEND)** emitida em conjunto Receita Federal + PGFN, que abrange tributos federais **e contribuições previdenciárias**. O FGTS tem certidão própria da Caixa (**CRF**).\n\n---\n\n**Resumindo:** para análise em massa / histórico → use os CSVs de dados abertos filtrando pelos arquivos Previdenciário e FGTS pelo CNPJ; para consulta pontual atual → Lista de Devedores ou as certidões.\n\nQuer que eu monte um script (ex.: Python/pandas) que baixa esses arquivos e verifica se um CNPJ aparece como devedor previdenciário ou de FGTS?",
-   "tools": []
+   "tools": [],
+   "exemplo_exec": null
   },
   {
    "id": "categoricas",
@@ -205,7 +283,11 @@
      "tool": "Bash",
      "alvo": "echo \"=== depara_escolaridade ===\" && cat data/dicts/depara_escolaridade.csv && echo \"=== depara_motivo ===\" && cat data/dicts/depara_motivo.csv"
     }
-   ]
+   ],
+   "exemplo_exec": {
+    "cmd": "pwd && ls -la",
+    "output": "/mnt/d/Projetos/Consignado\ntotal 35840\ndrwxrwxrwx 1 coder coder   512 Jun  5 16:36 .\ndrwxrwxrwx 1 coder coder   512 Apr 29 18:24 ..\n-rwxrwxrwx 1 coder coder   292 Jun  5 19:26 .gitignore\n-rwxrwxrwx 1 coder coder 10257 Jun  7 03:57 README.md\n-rwxrwxrwx 1 coder coder  1529 Jun  7 00:01 _agg_treino.py\n-rwxrwxrwx 1 coder coder  1018 Jun  7 00:07 _aggtreino.log\n-rwxrwxrwx 1 coder coder 42979 Jun  7 00:16 _build_notebooks.py\n-rwxrwxrwx 1 coder coder  1387 Jun  7 07:37 _dl_hist.log\n-rwxrwxrwx 1 coder coder   877 Jun  7 05:41 _dl_hist.sh\n-rwxrwxrwx 1 coder coder  2103 Jun  5 23:42 _dl_pgfn.log\n-rwxrwxrwx 1 coder coder  1867 Jun  5 23:27 _dl_pgfn.sh\n-rwxrwxrwx 1 coder coder   348 Jun  7 12:52 _enswatch.log\n-rwxrwxrwx 1 coder coder   471 Jun  7 03:40 _gpuwatch.log\n-rwxrwxrwx 1 coder coder  3529 Jun  7 12:50 _lags.log\n-rwxrwxrwx 1 coder coder    28 Jun  7 15:01 _lagswatch.log\n-rwxrwxrwx 1 coder cod"
+   }
   },
   {
    "id": "gpu",
@@ -232,7 +314,11 @@
      "tool": "Bash",
      "alvo": "export HUB_TOKEN=\"$(grep -E '^HUB_API_KEYS=' /mnt/d/Projetos/HubService/.env | head -1 | cut -d= -f2- | tr -d '\"' | cut -d, -f1)\"; curl -s -H \"Authorization: Bearer $HUB_TOKEN\" http://hub:8788/compute"
     }
-   ]
+   ],
+   "exemplo_exec": {
+    "cmd": "ls runpod/ && echo \"---POD---\" && cat runpod/pod.json 2>/dev/null && echo \"---PODS LIST not run---\"",
+    "output": "README.md\n__pycache__\nbuild_aggs_pod.py\nfinish_aggs.py\npod.json\nprep_lags.py\nremote.py\nresumable_put.py\nsync_interim.py\ntrain_ensemble.py\ntrain_ensemble_lags.py\ntrain_full.py\ntrain_model.py\ntrain_model_lags.py\n---POD---\n{\"pod_id\": \"u5lpztlunhbl98\", \"host\": \"207.210.107.252\", \"port\": 15999, \"cost_per_hr\": 5.89, \"gpu\": \"B200\", \"cmd_timeout\": 14400}\n---PODS LIST not run---"
+   }
   },
   {
    "id": "ftp",
@@ -255,7 +341,11 @@
      "tool": "Bash",
      "alvo": "echo \"=== RAIS/2024 ===\"; curl -s --max-time 90 \"ftp://ftp.mtps.gov.br/pdet/microdados/RAIS/2024/\" 2>&1 | head -20\necho \"=== RAIS/2025 ===\"; curl -s --max-time 90 \"ftp://ftp.mtps.gov.br/pdet/microdado"
     }
-   ]
+   ],
+   "exemplo_exec": {
+    "cmd": "curl -s --max-time 60 -l \"ftp://ftp.mtps.gov.br/pdet/microdados/\" 2>&1 | head -50; echo \"---EXIT: $?---\"",
+    "output": "CAGED\nCAGED_AJUSTES\nCOMUNICADO_microdados.pdf\nNOTA_TECNICA_microdados.pdf\nNOVO CAGED\nRAIS\nTRABALHO_DOMESTICO\n---EXIT: 0---"
+   }
   },
   {
    "id": "html_interativo",
@@ -274,7 +364,11 @@
      "tool": "Bash",
      "alvo": "cd /mnt/d/Projetos/Consignado\n/tmp/consig_venv/bin/python gerar_html_sobrevivencia.py\necho \"---\"; ls -la outputs/sobrevivencia_interativa.html\necho \"--- sanity: JSON embutido válido? ---\"\n/tmp/consig_"
     }
-   ]
+   ],
+   "exemplo_exec": {
+    "cmd": "cd /mnt/d/Projetos/Consignado\n/tmp/consig_venv/bin/python gerar_html_sobrevivencia.py\necho \"---\"; ls -la outputs/sobrevivencia_interativa.html\necho \"--- sanity: JSON embutido válido? ---\"\n/tmp/consig_venv/bin/python - <<'EOF'\nimport re,json\nh=open(\"outputs/sobrevivencia_interativa.html\",encoding=\"ut",
+    "output": "mkdir -p failed for path /home/coder/.config/matplotlib: [Errno 13] Permission denied: '/home/coder/.config/matplotlib'\nMatplotlib created a temporary cache directory at /tmp/matplotlib-qu2f3_5e because there was an issue with the default path (/home/coder/.config/matplotlib); it is highly recommended to set the MPLCONFIGDIR environment variable to a writable directory, in particular to speed up the import of Matplotlib and to better support multiprocessing.\n/mnt/d/Projetos/Consignado/gerar_html_sobrevivencia.py:27: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed in 3.11. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap()`` or ``pyplot.get_cmap()`` instead.\n  cmap = cm.get_cmap(\"RdYlGn_r\"); norm = colors.Normalize(vmin=min(ks), vmax=max(ks))\nFIM -> outputs/sobrevivencia_interativa.html (12.7 KB) | 23 categorias"
+   }
   },
   {
    "id": "tempo_medio",
@@ -289,7 +383,11 @@
      "tool": "Bash",
      "alvo": "cd /mnt/d/Projetos/Consignado\necho \"===== colunas mantidas / alvo (config.yaml) =====\"; grep -iE \"mes|deslig|target|alvo|horizon|tempo|motivo|colun|keep|drop\" config.yaml | head -40\necho; echo \"===== "
     }
-   ]
+   ],
+   "exemplo_exec": {
+    "cmd": "cd /mnt/d/Projetos/Consignado\necho \"===== colunas mantidas / alvo (config.yaml) =====\"; grep -iE \"mes|deslig|target|alvo|horizon|tempo|motivo|colun|keep|drop\" config.yaml | head -40\necho; echo \"===== cleaning.py: campos de mês/desligamento =====\"; grep -niE \"mes_deslig|mes_admis|desligamento|motivo|",
+    "output": "===== colunas mantidas / alvo (config.yaml) =====\n# Configuração central do projeto — Score Agregado de Risco de Desligamento\n# Horizontes de previsão do score (em meses)\nhorizontes_meses: [3, 6, 12]\n# synthetic_mode: true  -> gera dados sintéticos com o MESMO schema dos microdados.\n# fator de ajuste por célula L=(cbo2,cnae2,uf). Use meses MAIS RECENTES que a\n  meses: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]\n# Base trimestral pública. URL: {base}/{ano}_trimestre_TT/Dados_abertos_{TIPO}.zip\n  trimestre_inicio: 1\n  # ano_fim/trimestre_fim null -> detecta automaticamente o último publicado.\n  trimestre_fim: null\n  # Grupos a baixar. Previdenciario (~80 MB) + FGTS (~15 MB) por trimestre.\n  # Inclua Nao_Previdenciario (~1,2 GB/trimestre, ~30 GB no total) só se precisar.\n  # Tempo de vínculo em meses -> faixas (bordas superiores; última = +inf)\n  tempo_vinculo_meses: [3, 6, 12, 24, 60]\n  niveis"
+   }
   }
  ]
 }

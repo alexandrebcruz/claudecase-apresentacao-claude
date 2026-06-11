@@ -12,18 +12,42 @@ apresentação para a diretoria.
 |---|---|
 | `extrair_trechos.py` | Minera os transcripts `.jsonl` das sessões do Claude Code e gera `dados_apresentacao.json` (trechos verbatim + estatísticas reais) |
 | `dados_apresentacao.json` | Dados extraídos (momentos, sessões, números) |
-| `gerar_apresentacao_claude.py` | Gera `apresentacao_claude_consignado.html` a partir do JSON, com figuras reais do projeto embutidas em base64 |
-| `apresentacao_claude_consignado.html` | A apresentação — 15 slides, autossuficiente, sem dependências |
+| `gerar_apresentacao_claude.py` | Gera as apresentações a partir do JSON, com figuras reais do projeto embutidas em base64 |
+| `apresentacao_claude_consignado.html` | A apresentação técnica — 19 slides, autossuficiente, sem dependências |
+| `apresentacao_claude_consignado_executivo.html` | Variante para público leigo (diretoria/executivos) — 17 slides |
 | `fonts_dejavu.css` | Fonte DejaVu Sans embutida (base64), mesma do deck original |
 
 ## Como regenerar
 
 ```bash
-python3 extrair_trechos.py        # lê ~/.claude/projects/<projeto>/*.jsonl
-python3 gerar_apresentacao_claude.py
+python3 extrair_trechos.py                      # lê ~/.claude/projects/<projeto>/*.jsonl
+python3 gerar_apresentacao_claude.py            # versão técnica
+python3 gerar_apresentacao_claude.py --executivo  # versão para diretoria
 ```
 
 Abra o HTML no navegador.
+
+## Versão executiva (`--executivo`)
+
+Adaptada para quem não trabalha com ciência de dados:
+
+- **Jargão traduzido**: sem CatBoost/Kaplan-Meier/holdout/tokens — "modelo de
+  IA treinado em supercomputadores alugados por hora", "quanto tempo cada
+  pessoa tende a permanecer empregada", "X mi de páginas lidas e escritas"
+- **Resultado primeiro**: novo slide "O problema de negócio" e a tabela de
+  cobertura de parcelas logo no início; bastidores depois
+- **Números como comparação de negócio**: 6 dias vs. 3–6 meses de um projeto
+  típico; custo = 1 mês de assinatura vs. computação avulsa
+- **3 momentos em vez de 6** (controle de risco, método, entrega) + slide
+  resumo "os outros momentos em uma linha"
+- **Slide de Governança**: LGPD/dados públicos, humano no comando,
+  auditabilidade, próximos passos
+- **Cortado**: heatmap dia × hora; o slide de energia/data centers foi
+  mantido em versão adaptada (tom ESG: eficiência crescente, matriz limpa,
+  "usar bem")
+- **Sem revelação progressiva**: todos os blocos já aparecem abertos (bom
+  para envio por e-mail). Na versão técnica, o mesmo efeito pode ser obtido
+  abrindo o arquivo com `?modo=executivo` na URL
 
 ## Navegação e recursos
 

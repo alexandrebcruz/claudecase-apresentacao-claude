@@ -15,12 +15,19 @@ import html
 import json
 import os
 import re
+import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 FIGDIR = "/mnt/d/Projetos/Consignado/outputs/figures"
 DADOS = json.load(open(os.path.join(BASE, "dados_apresentacao.json"),
                        encoding="utf-8"))
-OUT = os.path.join(BASE, "apresentacao_claude_consignado.html")
+
+# --executivo: gera a variante para público leigo (diretoria/executivos):
+#  jargão traduzido, resultado antes dos bastidores, 3 momentos em vez de 6,
+#  slide de governança, sem heatmap/energia e sem revelação progressiva.
+EXEC = "--executivo" in sys.argv
+OUT = os.path.join(BASE, "apresentacao_claude_consignado_executivo.html"
+                   if EXEC else "apresentacao_claude_consignado.html")
 
 G = DADOS["stats_globais"]
 SESSOES = DADOS["sessoes"]
@@ -332,6 +339,64 @@ SVG_COVER = '''<svg viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg" opa
 <text x="150" y="392" text-anchor="middle" font-size="58" font-weight="800" fill="#f4a722">✳</text>
 </svg>'''
 
+# --- SVGs exclusivos da versão executiva ---------------------------------
+
+# O problema de negócio: contrato consignado × perda do emprego
+SVG_PROBLEMA = '''<svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">
+<style>.t{font:600 12px sans-serif;fill:#14233f}.s{font:10.5px sans-serif;fill:#5b6675}</style>
+<text class="t" x="14" y="26">Contrato A — emprego mantido</text>
+<g>''' + "".join(
+    f'<rect x="{14 + i * 28}" y="36" width="24" height="26" rx="4" '
+    f'fill="#2e8b57"/>'
+    f'<text x="{26 + i * 28}" y="54" text-anchor="middle" font-size="11" '
+    f'font-weight="700" fill="#fff">✓</text>'
+    for i in range(12)) + '''</g>
+<text class="s" x="14" y="80">todas as parcelas descontadas em folha</text>
+<text class="t" x="14" y="122">Contrato B — emprego perdido no mês 5</text>
+<g>''' + "".join(
+    (f'<rect x="{14 + i * 28}" y="132" width="24" height="26" rx="4" '
+     f'fill="{"#2e8b57" if i < 5 else "#d73027"}"/>'
+     f'<text x="{26 + i * 28}" y="150" text-anchor="middle" font-size="11" '
+     f'font-weight="700" fill="#fff">{"✓" if i < 5 else "✗"}</text>')
+    for i in range(12)) + '''</g>
+<text class="s" x="14" y="176">sem folha de pagamento, o desconto automático para</text>
+<rect x="14" y="200" width="332" height="86" rx="8" fill="#fdf6e7"
+ stroke="#f4a722" stroke-width="2"/>
+<text x="180" y="226" text-anchor="middle" font-size="11.5" font-weight="700"
+ fill="#b07b10" textLength="300" lengthAdjust="spacingAndGlyphs">A PERGUNTA QUE O MODELO RESPONDE</text>
+<text x="180" y="248" text-anchor="middle" font-size="10.5" fill="#5b6675"
+ textLength="310" lengthAdjust="spacingAndGlyphs">Qual a chance de cada trabalhador perder o emprego</text>
+<text x="180" y="264" text-anchor="middle" font-size="10.5" fill="#5b6675"
+ textLength="280" lengthAdjust="spacingAndGlyphs">antes do fim do contrato — e em quanto tempo?</text>
+</svg>'''
+
+
+def svg_prazo():
+    """Comparação de prazo: projeto tradicional vs. este projeto."""
+    return '''<svg viewBox="0 0 360 170" xmlns="http://www.w3.org/2000/svg">
+<style>.t{font:600 11.5px sans-serif;fill:#14233f}.s{font:10px sans-serif;fill:#5b6675}</style>
+<text class="t" x="14" y="30">Projeto t&#237;pico de modelo de cr&#233;dito</text>
+<rect x="14" y="40" width="332" height="26" rx="6" fill="#3b7dba"/>
+<text x="180" y="58" text-anchor="middle" font-size="12" font-weight="700"
+ fill="#fff">3 a 6 meses &#183; time multidisciplinar</text>
+<text class="t" x="14" y="100">Este projeto</text>
+<rect x="14" y="110" width="22" height="26" rx="6" fill="#f4a722"/>
+<text x="46" y="128" font-size="12" font-weight="700"
+ fill="#14233f">6 dias &#183; 1 pessoa + IA</text>
+<text class="s" x="14" y="160">da primeira conversa &#224; apresenta&#231;&#227;o
+ pronta para a diretoria</text>
+</svg>'''
+
+
+# Balanço (versão leiga): mesmos 4 papéis, sem siglas técnicas
+SVG_BALANCO_EXEC = (
+    SVG_BALANCO
+    .replace("RAIS + CAGED, vários anos", "dados oficiais de emprego")
+    .replace("Infra &amp; GPU remota", "Computação na nuvem")
+    .replace("B200/H200, jobs monitorados",
+             "supercomputadores por hora")
+    .replace("CatBoost, KM, Weibull", "risco e tempo de emprego"))
+
 
 # ------------------------------------------------------------ componentes
 
@@ -518,48 +583,251 @@ def svg_heatmap():
             f'xmlns="http://www.w3.org/2000/svg">{"".join(el)}</svg>')
 
 
-# ------------------------------------------------------------ slides
+# ----------------------- extração da apresentação nova do Consignado (2124)
 
-slides = []
+DECK2124 = "/mnt/d/Projetos/Consignado/outputs/apresentacao_risco_2124.html"
+_deck_cache = {}
+
+
+def deck2124():
+    if "h" not in _deck_cache:
+        _deck_cache["h"] = open(DECK2124, encoding="utf-8").read()
+    return _deck_cache["h"]
+
+
+def dados_km_2124():
+    """Série KM por categoria embutida no deck novo (const DATA=[...])."""
+    h = deck2124()
+    i = h.find("const DATA=") + len("const DATA=")
+    depth = 0
+    for p in range(i, len(h)):
+        if h[p] == "[":
+            depth += 1
+        elif h[p] == "]":
+            depth -= 1
+            if depth == 0:
+                break
+    return json.loads(h[i:p + 1])
+
+
+def svg_km_2124():
+    """Curvas de sobrevivência KM (slide B1 do deck novo) re-renderizadas
+    em SVG estático com o MESMO layout do gráfico da apresentação do
+    Consignado: mesmas medidas (760×470, margens 54/12/10/38), mesmos
+    dados, cores, grade, eixos, rótulos e pontos — sem imagem rasterizada."""
+    DATA = dados_km_2124()
+    W, HT = 760, 470
+    Ml, Mr, Mt, Mb = 54, 12, 10, 38
+    PW, PH = W - Ml - Mr, HT - Mt - Mb
+    H = XMAX = 12
+    lo = min(v for s in DATA for v in s["S"])
+    pad = 0.04 * (1 - lo) + 0.005
+    ymin, ymax = max(0.0, lo - pad), 1.0
+
+    def X(m):
+        return Ml + m / XMAX * PW
+
+    def Y(s):
+        return Mt + (1 - (s - ymin) / (ymax - ymin)) * PH
+
+    el = []
+    rng = ymax - ymin
+    dec = 3 if rng < 0.04 else 2
+    NT = 5
+    for i in range(NT + 1):                      # grade + ticks Y
+        sv = ymin + rng * i / NT
+        yy = Y(sv)
+        el.append(f'<line x1="{Ml}" y1="{yy:.1f}" x2="{W-Mr}" y2="{yy:.1f}" '
+                  f'stroke="#e6e6e6"/>')
+        el.append(f'<text x="{Ml-6}" y="{yy+3:.1f}" text-anchor="end" '
+                  f'font-size="11" fill="#666">{sv:.{dec}f}</text>')
+    for m in range(XMAX + 1):                    # grade + ticks X
+        xx = X(m)
+        el.append(f'<line x1="{xx:.1f}" y1="{Mt}" x2="{xx:.1f}" '
+                  f'y2="{Mt+PH}" stroke="#e6e6e6"/>')
+        el.append(f'<text x="{xx:.1f}" y="{Mt+PH+15}" text-anchor="middle" '
+                  f'font-size="11" fill="#666">{m}</text>')
+    el.append(f'<line x1="{Ml}" y1="{Mt}" x2="{Ml}" y2="{Mt+PH}" '
+              f'stroke="#999"/>')
+    el.append(f'<line x1="{Ml}" y1="{Mt+PH}" x2="{W-Mr}" y2="{Mt+PH}" '
+              f'stroke="#999"/>')
+    el.append(f'<text text-anchor="middle" font-size="12" fill="#1b2430" '
+              f'transform="translate(14,{Mt+PH/2:.0f}) rotate(-90)">'
+              f'S(t) = P(seguir empregado)</text>')
+    el.append(f'<text x="{Ml+PW/2:.0f}" y="{HT-4}" text-anchor="middle" '
+              f'font-size="12" fill="#1b2430">MOB — meses desde a entrada'
+              f'</text>')
+    for s in DATA:                               # curvas + pontos
+        d = "M " + " L ".join(f"{X(m):.1f} {Y(s['S'][m]):.1f}"
+                              for m in range(H + 1))
+        el.append(f'<path d="{d}" fill="none" stroke="{s["cor"]}" '
+                  f'stroke-width="1.7"/>')
+        for m in range(H + 1):
+            el.append(f'<circle cx="{X(m):.1f}" cy="{Y(s["S"][m]):.1f}" '
+                      f'r="2.4" fill="{s["cor"]}" stroke="#fff" '
+                      f'stroke-width="0.5"/>')
+    return (f'<svg viewBox="0 0 {W} {HT}" '
+            f'xmlns="http://www.w3.org/2000/svg">{"".join(el)}</svg>')
+
+
+def _tab_2124(titulo_pfx):
+    """Extrai (título, <table>…</table>) verbatim do deck novo."""
+    h = deck2124()
+    i = h.find('apt-h">' + titulo_pfx)
+    titulo = h[i + len('apt-h">'):h.find("</div>", i)]
+    ini = h.find("<table", i)
+    fim = h.find("</table>", ini) + len("</table>")
+    return titulo, h[ini:fim]
+
+
+def tabela_prazo_2124_box():
+    """Tabela nativa (HTML, não imagem) de prazo máximo por confiança de
+    seguir empregado, extraída verbatim do deck novo do Consignado —
+    mesmo layout e cores."""
+    t1, tab1 = _tab_2124("Prazo m")
+    return (f'<div class="apt2c">'
+            f'<div class="apt2b" style="flex:0 1 auto">'
+            f'<div class="apt-h2">{t1}</div>{tab1}</div></div>')
+
+
+# ------------------------------------------------------------ slides
+#
+# Cada slide é construído em uma variável nomeada; a ordem final é montada
+# no fim da seção, diferente para a versão técnica e a executiva.
 
 # 1 — capa
-slides.append(f'''
+_capa_sub = ("Dos registros públicos de emprego do governo ao modelo pronto "
+             "e à apresentação para a diretoria — tudo conduzido por "
+             "conversa, em português." if EXEC else
+             "Do download dos dados públicos ao treino em GPU e à apresentação "
+             "para a diretoria — tudo conduzido por conversa, em português.")
+slide_capa = f'''
 <section class="slide cover">
  <div class="cdec">{SVG_COVER}</div>
  <div class="cbox">
-  <div class="ckick">PROJETO CONSIGNADO · BASTIDORES</div>
+  <div class="ckick">PROJETO CONSIGNADO · {"VISÃO EXECUTIVA" if EXEC else "BASTIDORES"}</div>
   <div class="ctit">COMO O CLAUDE CONSTRUIU<br>O MODELO DE RISCO</div>
-  <div class="csub">Do download dos dados públicos ao treino em GPU e à apresentação
-  para a diretoria — tudo conduzido por conversa, em português.</div>
+  <div class="csub">{_capa_sub}</div>
   <div class="cmeta">{fmt_data(G["periodo_inicio"]+"T")} – {fmt_data(G["periodo_fim"]+"T")} ·
   {G["n_sessoes"]} sessões de trabalho · trechos reais do histórico</div>
  </div>
-</section>''')
+</section>'''
 
-# 2 — o projeto em 1 slide (bullets + figura real)
-slides.append(f'''
+# 1b — abertura lúdica: um sonho de 3.000 anos
+_sonhos = [
+    ("🔱", "Hefesto", "séc. VIII a.C.",
+     "na Ilíada, o deus ferreiro tem trípodes que servem os deuses sozinhos "
+     "e ajudantes de ouro “com inteligência e voz”"),
+    ("⚙️", "Autômatos", "séc. XIII–XVIII",
+     "cabeças de bronze “que respondem perguntas”, o cavaleiro mecânico de "
+     "Da Vinci e o tear programável de Vaucanson"),
+    ("🤖", "A palavra “robô”", "1920",
+     "Karel Čapek a cunha a partir de robota, “trabalho pesado”: máquinas "
+     "imaginadas para poupar o esforço humano"),
+    ("🌴", "O sonho do ócio", "1930",
+     "Keynes prevê a semana de 15 horas; Russell escreve o Elogio do Ócio: "
+     "a máquina trabalha, o humano cria"),
+    ("✳️", "IA agêntica", "hoje",
+     "o sonho vira ferramenta de trabalho: você conversa — o agente "
+     "planeja, executa e entrega"),
+]
+_scards = []
+for i, (ic, tt, ano, cap) in enumerate(_sonhos):
+    destaque = ' edest' if i == len(_sonhos) - 1 else ''
+    _scards.append(
+        f'<div class="ecard{destaque}"><div class="eic">{ic}</div>'
+        f'<div class="ett">{e(tt)}</div><div class="eano">{e(ano)}</div>'
+        f'<div class="ecap">{e(cap)}</div></div>')
+    if i < len(_sonhos) - 1:
+        _scards.append('<div class="earr">→</div>')
+
+slide_sonho = f'''
+<section class="slide">
+ {header("ANTES DE COMEÇAR", "Um sonho de 3.000 anos")}
+ <div class="body" style="justify-content:space-evenly">
+  <div style="text-align:center;padding:0 6%;line-height:1.45;
+   font-size:calc(var(--u)*1.45);color:var(--navy)">
+   “Se cada ferramenta pudesse realizar sua própria tarefa quando ordenada…
+   <b>se a lançadeira tecesse sozinha</b> e o plectro tocasse a lira por si
+   mesmo, os mestres não precisariam de ajudantes.”
+   <div style="font-size:calc(var(--u)*0.95);color:var(--gray);
+    margin-top:calc(var(--u)*0.5)">Aristóteles, <i>Política</i>, Livro I — séc. IV a.C.</div>
+  </div>
+  <div class="rev"><div class="elbl">A MÁQUINA QUE TRABALHA SOZINHA — UMA IDEIA QUE A
+   HUMANIDADE NUNCA ABANDONOU</div>
+   <div class="evo">{"".join(_scards)}</div></div>
+  {rev('<div class="why"><span class="wlbl">O GANCHO</span> '
+       'Por quase três mil anos, a ferramenta que “vê o que fazer por antecipação” '
+       'foi mito, lenda e utopia. O que vem nos próximos slides é esse sonho '
+       'antigo <b>funcionando na prática</b>: um modelo de risco construído '
+       'inteiro por conversa.</div>')}
+ </div>
+ <div class="foot">De Homero a Keynes: imaginar autômatos que assumem o trabalho — liberando tempo humano para criar — acompanha toda a história da civilização</div>
+</section>'''
+
+# 2 — o projeto em 1 slide (bullets + figura real); jargão traduzido no exec
+if EXEC:
+    _proj_bullets = '''
+     <li><b>Objetivo:</b> estimar a chance de cada trabalhador perder o emprego nos próximos meses — usando apenas dados públicos e gratuitos do governo (RAIS e CAGED, os registros oficiais de emprego).</li>
+     <li><b>Preparação:</b> dados baixados direto da fonte oficial, conferidos e organizados em um histórico mês a mês de cada vínculo de trabalho.</li>
+     <li><b>Modelo:</b> inteligência artificial treinada em supercomputadores alugados por hora na nuvem, que classifica cada trabalhador em 14 grupos de risco.</li>
+     <li><b>Análises:</b> estimativa de quanto tempo cada pessoa tende a permanecer empregada, por grupo de risco.</li>
+     <li><b>Entrega:</b> apresentação interativa usada com a diretoria.</li>'''
+    _proj_fig_cap = ("Chance de permanecer empregado ao longo do tempo, para "
+                     "cada um dos 14 grupos de risco — gráfico renderizado "
+                     "em SVG com o mesmo layout, dados e cores da "
+                     "apresentação da diretoria (ref. 2021–2024)")
+else:
+    _proj_bullets = '''
+     <li><b>Objetivo:</b> estimar o risco de perda de emprego nos próximos meses, só com dados públicos (RAIS + Novo CAGED), para subsidiar o crédito consignado.</li>
+     <li><b>Pipeline:</b> download dos microdados oficiais (FTP do MTE), limpeza, harmonização entre anos e features com lags.</li>
+     <li><b>Modelo:</b> ensemble CatBoost treinado em GPUs B200/H200, calibrado, com 14 categorias de risco (esteira 21–24).</li>
+     <li><b>Análises:</b> sobrevivência Kaplan-Meier, extrapolação Weibull, personas por categoria.</li>
+     <li><b>Entrega:</b> apresentação interativa em HTML usada com a diretoria.</li>'''
+    _proj_fig_cap = ("Saída real do projeto: curvas de sobrevivência das "
+                     "14 categorias de risco (modelo novo, ref. 2021–2024)")
+_proj_fig = (figbox(svg_km_2124(), _proj_fig_cap, real=True) if EXEC
+             else fig_img("sobrevivencia_categorias_mob_2124.png",
+                          _proj_fig_cap))
+slide_projeto = f'''
 <section class="slide">
  {header("CONTEXTO", "O projeto em um slide")}
  <div class="body">
   <div class="cols">
    <div class="colL">
-    <ul class="big">
-     <li><b>Objetivo:</b> estimar o risco de perda de emprego nos próximos meses, só com dados públicos (RAIS + Novo CAGED), para subsidiar o crédito consignado.</li>
-     <li><b>Pipeline:</b> download dos microdados oficiais (FTP do MTE), limpeza, harmonização entre anos e features com lags.</li>
-     <li><b>Modelo:</b> ensemble CatBoost treinado em GPUs B200/H200, calibrado, com 23 categorias de risco.</li>
-     <li><b>Análises:</b> sobrevivência Kaplan-Meier, extrapolação Weibull, personas por categoria.</li>
-     <li><b>Entrega:</b> apresentação interativa em HTML usada com a diretoria.</li>
+    <ul class="big">{_proj_bullets}
     </ul>
    </div>
    <div class="colR">
-    {fig_img("sobrevivencia_categorias_2023.png",
-             "Saída real do projeto: curvas de sobrevivência das 23 categorias de risco")}
+    {_proj_fig}
    </div>
   </div>
   <div class="why"><span class="wlbl">O PONTO</span> Cada uma dessas etapas foi feita pedindo ao Claude — esta apresentação mostra como.</div>
  </div>
  <div class="foot">Projeto: D:/Projetos/Consignado</div>
-</section>''')
+</section>'''
+
+# 2b (exec) — o problema de negócio
+slide_problema = f'''
+<section class="slide">
+ {header("O PROBLEMA DE NEGÓCIO", "Consignado privado: o risco é o emprego acabar antes do contrato")}
+ <div class="body">
+  <div class="cols">
+   <div class="colL">
+    <ul class="big">
+     <li><b>No consignado, a parcela é descontada direto da folha de pagamento</b> — por isso a inadimplência é baixa enquanto a pessoa está empregada.</li>
+     <li><b>O risco central não é o caráter do cliente: é o vínculo de emprego acabar</b> antes do fim do contrato.</li>
+     <li>A pergunta que importa para o crédito: <b>qual a chance de cada trabalhador perder o emprego nos próximos meses — e em quanto tempo?</b></li>
+     <li>A resposta foi construída <b>apenas com dados públicos e gratuitos do governo</b> — sem usar nenhum dado de cliente do banco.</li>
+    </ul>
+   </div>
+   <div class="colR">
+    {figbox(SVG_PROBLEMA, "Enquanto há folha, a parcela cai sozinha; sem emprego, o desconto automático para")}
+   </div>
+  </div>
+ </div>
+ <div class="foot">RAIS e CAGED: registros administrativos oficiais de emprego formal, publicados pelo Ministério do Trabalho</div>
+</section>'''
 
 # 3 — números reais
 def fmt_bi(n):
@@ -568,50 +836,87 @@ def fmt_bi(n):
     return f"{n/1e6:.0f} mi"
 
 
-cards = [
-    (str(G["n_sessoes"]), "sessões de trabalho"),
-    ("6 dias", f'{fmt_data(G["periodo_inicio"]+"T")} a {fmt_data(G["periodo_fim"]+"T")}'),
-    (fmt_n(G["msgs_user"]), "pedidos feitos em português"),
-    (fmt_n(G["msgs_assistant"]), "respostas e ações do Claude"),
-    (fmt_n(G["comandos_bash"]), "comandos executados"),
-    (fmt_n(G["arquivos_escritos"]), "arquivos criados ou editados"),
-]
 CAMBIO = 5.19  # R$/US$ (cotação de 10/06/2026)
 custo_brl = round(G["custo_api_usd"] * CAMBIO)
-cards += [
-    (fmt_bi(G["tokens_total"]), "tokens processados"),
-    (f'R$ {fmt_n(custo_brl)}', "de compute, em preço de API"),
-]
+PLANO_USD = 100  # Claude Max 5x
+plano_brl = round(PLANO_USD * CAMBIO)
+mult = round(G["custo_api_usd"] / PLANO_USD)
+# equivalência leiga: 1 página de texto ≈ 500 tokens
+paginas_mi = G["tokens_total"] / 500 / 1e6
+
+if EXEC:
+    cards = [
+        ("6 dias", "da primeira conversa à apresentação pronta"),
+        ("1 pessoa", "fazendo o papel de um time inteiro"),
+        (fmt_n(G["msgs_user"]), "pedidos feitos em português"),
+        (fmt_n(G["comandos_bash"]),
+         "operações executadas — nenhuma digitada à mão"),
+        (fmt_n(G["arquivos_escritos"]), "arquivos criados ou editados"),
+        (f"{paginas_mi:.1f} mi".replace(".", ","),
+         "de páginas de texto lidas e escritas pela IA"),
+    ]
+else:
+    cards = [
+        (str(G["n_sessoes"]), "sessões de trabalho"),
+        ("6 dias", f'{fmt_data(G["periodo_inicio"]+"T")} a {fmt_data(G["periodo_fim"]+"T")}'),
+        (fmt_n(G["msgs_user"]), "pedidos feitos em português"),
+        (fmt_n(G["msgs_assistant"]), "respostas e ações do Claude"),
+        (fmt_n(G["comandos_bash"]), "comandos executados"),
+        (fmt_n(G["arquivos_escritos"]), "arquivos criados ou editados"),
+        (fmt_bi(G["tokens_total"]), "tokens processados"),
+        (f'R$ {fmt_n(custo_brl)}', "de compute, em preço de API"),
+    ]
 cards_html = "".join(
     f'<div class="card"><div class="cn">{e(v)}</div>'
     f'<div class="cl">{e(l)}</div></div>' for v, l in cards)
 # card destacado: custo real = assinatura mensal
-PLANO_USD = 100  # Claude Max 5x
-plano_brl = round(PLANO_USD * CAMBIO)
-mult = round(G["custo_api_usd"] / PLANO_USD)
-cards_html += (
-    f'<div class="card cdest" style="grid-column:span 2">'
-    f'<div class="cn">{mult}× <span class="cnsub">o valor da assinatura</span></div>'
-    f'<div class="cl">custo real: 1 mês do plano (≈ R$ {fmt_n(plano_brl)}) — '
-    f'<b>sem chegar perto do limite de uso</b></div></div>')
-slides.append(f'''
+if EXEC:
+    cards_html += (
+        f'<div class="card cdest" style="grid-column:span 2">'
+        f'<div class="cn">R$ {fmt_n(plano_brl)} <span class="cnsub">custo total'
+        f'</span></div>'
+        f'<div class="cl">1 mês de assinatura da ferramenta — o equivalente '
+        f'em computação avulsa custaria <b>{mult}× mais</b> '
+        f'(≈ R$ {fmt_n(custo_brl)})</div></div>')
+else:
+    cards_html += (
+        f'<div class="card cdest" style="grid-column:span 2">'
+        f'<div class="cn">{mult}× <span class="cnsub">o valor da assinatura</span></div>'
+        f'<div class="cl">custo real: 1 mês do plano (≈ R$ {fmt_n(plano_brl)}) — '
+        f'<b>sem chegar perto do limite de uso</b></div></div>')
+if EXEC:
+    _num_fig = figbox(svg_prazo(),
+        "Prazo típico de mercado para desenvolver um modelo de crédito "
+        "versus o prazo deste projeto")
+    _num_why = ('<div class="why"><span class="wlbl">FONTE</span> Tudo medido '
+                'diretamente no histórico das sessões de trabalho — nada '
+                'aqui é estimativa.</div>')
+    _num_foot = ("Estatísticas extraídas do registro completo das sessões · "
+                 f"câmbio R$ {CAMBIO:.2f}/US$")
+else:
+    _num_fig = figbox(svg_barras_sessoes(),
+        "Volume de mensagens por sessão — as duas grandes concentram o "
+        "planejamento e a entrega final")
+    _num_why = (f'<div class="why"><span class="wlbl">FONTE</span> Estatísticas e tokens medidos diretamente no histórico '
+                f'das sessões ({G["mb_transcripts"]} MB) — nada aqui é estimativa. Detalhe: {round(G["tokens_cache_read"]/G["tokens_total"]*100)}% '
+                f'dos tokens vieram do <b>cache</b> (10% do preço) — sem ele, o custo seria ~7× maior.</div>')
+    _num_foot = ("Extraído de ~/.claude/projects/…Consignado/*.jsonl · preços oficiais da API "
+                 f"(Opus 4.8: US$ 5/25 por MTok; cache write 1,25×, read 0,1×) · câmbio R$ {CAMBIO:.2f}/US$")
+slide_numeros = f'''
 <section class="slide">
  {header("NÚMEROS REAIS", "O que aconteceu nas sessões — medido, não estimado")}
  <div class="body">
   <div class="cols">
    <div class="colL"><div class="cards c2">{cards_html}</div></div>
-   <div class="colR">{figbox(svg_barras_sessoes(),
-        "Volume de mensagens por sessão — as duas grandes concentram o planejamento e a entrega final")}</div>
+   <div class="colR">{_num_fig}</div>
   </div>
-  <div class="why"><span class="wlbl">FONTE</span> Estatísticas e tokens medidos diretamente no histórico
-  das sessões ({G["mb_transcripts"]} MB) — nada aqui é estimativa. Detalhe: {round(G["tokens_cache_read"]/G["tokens_total"]*100)}%
-  dos tokens vieram do <b>cache</b> (10% do preço) — sem ele, o custo seria ~7× maior.</div>
+  {_num_why}
  </div>
- <div class="foot">Extraído de ~/.claude/projects/…Consignado/*.jsonl · preços oficiais da API (Opus 4.8: US$ 5/25 por MTok; cache write 1,25×, read 0,1×) · câmbio R$ {CAMBIO:.2f}/US$</div>
-</section>''')
+ <div class="foot">{_num_foot}</div>
+</section>'''
 
-# 3b — ritmo de trabalho (heatmap dia × hora)
-slides.append(f'''
+# 3b — ritmo de trabalho (heatmap dia × hora) — só na versão técnica
+slide_heatmap = f'''
 <section class="slide">
  {header("RITMO DE TRABALHO", "Quando o trabalho aconteceu — hora a hora")}
  <div class="body">
@@ -622,7 +927,7 @@ slides.append(f'''
  </div>
  <div class="foot">Atividade real (mensagens e ações por hora, horário de Brasília), extraída dos timestamps do histórico</div>
 </section>'''.format(f'<div class="figin">{svg_heatmap()}</div>'
-                     '<div class="figcap">Cada linha é um dia; cada célula, uma hora — quanto mais opaco o laranja, maior a atividade</div>'))
+                     '<div class="figcap">Cada linha é um dia; cada célula, uma hora — quanto mais opaco o laranja, maior a atividade</div>')
 
 # timeline interativa (inserida mais adiante, após o "Bônus · Proatividade")
 sess_js = []
@@ -658,11 +963,19 @@ exec_term = (f'<div class="term rev"><div class="tl"><span class="tt">Bash'
              f'</div>{_out_linhas}'
              f'<div class="to tor">← output real que o Claude leu e analisou'
              f'</div></div>') if _ex else term_block(ftp["tools"], 2)
-slides.append(f'''
+_anat_valor = ("Pergunta simples — 'os dados do governo estão atualizados?' "
+               "— respondida com verificação direta no servidor oficial e "
+               "evidência, não de memória." if EXEC else ftp["valor"])
+_anat_foot = ("O Claude não responde de memória: ele conecta no servidor "
+              "oficial do governo, lista as datas e prova a resposta"
+              if EXEC else
+              "O Claude não responde de memória: ele conecta no FTP, lista "
+              "as datas e prova a resposta")
+slide_anatomia = f'''
 <section class="slide">
  {header("COMO FUNCIONA", "A anatomia de uma interação")}
  <div class="body">
-  <div class="why"><span class="wlbl">EXEMPLO REAL</span> {e(ftp["valor"])}
+  <div class="why"><span class="wlbl">EXEMPLO REAL</span> {e(_anat_valor)}
    <span class="src">sessão {ftp["sessao"]} · {fmt_data(ftp["data"])}</span></div>
   <div class="steps">
    <div class="step"><div class="sn">1</div>Você pede,<br>em português</div>
@@ -677,8 +990,8 @@ slides.append(f'''
    {rev(chat_claude(ftp["resposta"], 380))}
   </div>
  </div>
- <div class="foot">O Claude não responde de memória: ele conecta no FTP, lista as datas e prova a resposta</div>
-</section>''')
+ <div class="foot">{_anat_foot}</div>
+</section>'''
 
 # 6–11 — momentos de ouro (chat à esquerda, figura à direita)
 FIGS_MOMENTO = {
@@ -688,32 +1001,128 @@ FIGS_MOMENTO = {
         "As 3 fontes públicas da PGFN mapeadas na resposta"),
     "categoricas": figbox(SVG_CAT,
         "O risco: o mesmo código com significados diferentes entre anos"),
-    "gpu": fig_img("calibracao_ensemble_base.png",
-        "Figura real do projeto: calibração do ensemble treinado na B200"),
-    "tempo_medio": fig_img("sobrevivencia_weibull_extrap_2023.png",
-        "Resultado da conversa: extrapolação Weibull do tempo até desligamento"),
-    "html_interativo": fig_img("estatisticas_tempo_categorias_2023.png",
-        "Figura real do projeto: estatísticas de tempo por categoria de risco"),
+    "gpu": fig_img("calibracao_ensemble_2124.png",
+        "Figura real do projeto: calibração do ensemble do modelo novo "
+        "(esteira 21–24), treinado em GPU"),
+    "tempo_medio": fig_img("sobrevivencia_weibull_extrap_mob_2124.png",
+        "Resultado da conversa: extrapolação Weibull do tempo até "
+        "desligamento (modelo novo, 14 categorias)"),
+    "html_interativo": fig_img("consignado_tabelas_2124.png",
+        "Figura real do projeto: prazo máximo e cobertura de parcelas por "
+        "categoria de risco (modelo novo — a conversa cita as 23 categorias "
+        "da versão da época; o modelo final usa 14)"),
 }
-ORDEM = ["planejamento", "pgfn", "categoricas", "gpu",
-         "tempo_medio", "html_interativo"]
-KICKERS = {
-    "planejamento": "MOMENTO 1 · PLANEJAMENTO",
-    "pgfn": "MOMENTO 2 · PESQUISA",
-    "categoricas": "MOMENTO 3 · QUALIDADE DE DADOS",
-    "gpu": "MOMENTO 4 · TREINO EM GPU",
-    "tempo_medio": "MOMENTO 5 · MÉTODO",
-    "html_interativo": "MOMENTO 6 · ENTREGA",
-}
+if EXEC:
+    # 3 momentos, renomeados e traduzidos para público leigo
+    ORDEM = ["categoricas", "planejamento", "html_interativo"]
+    KICKERS = {
+        "categoricas": "MOMENTO 1 · CONTROLE DE RISCO",
+        "planejamento": "MOMENTO 2 · MÉTODO",
+        "html_interativo": "MOMENTO 3 · ENTREGA",
+    }
+    TITULOS_EXEC = {
+        "categoricas": "O erro silencioso que não aconteceu",
+        "planejamento": "Planejar antes de executar",
+        "html_interativo": "A entrega: apresentação interativa por conversa",
+    }
+    VALORES_EXEC = {
+        "categoricas": ("A IA alertou, por conta própria, que os mesmos "
+                        "códigos dos dados do governo mudam de significado "
+                        "de um ano para o outro — e provou isso nos dados. "
+                        "Sem essa checagem, o modelo aprenderia padrões "
+                        "falsos e ninguém perceberia."),
+        "planejamento": ("Antes de produzir qualquer coisa, a IA fechou o "
+                         "escopo do projeto com perguntas que mudavam a "
+                         "arquitetura — o mesmo rigor de um bom gerente de "
+                         "projeto, evitando retrabalho."),
+        "html_interativo": ("Um pedido de uma frase virou a apresentação "
+                            "interativa usada com a diretoria — com os "
+                            "grupos de risco selecionáveis na tela."),
+    }
+    FIGS_MOMENTO["categoricas"] = figbox(SVG_CAT,
+        "O risco: o mesmo código com significados diferentes entre anos — "
+        "um erro invisível que distorceria o modelo")
+    # tabela nativa (HTML, não imagem) extraída verbatim do deck novo
+    FIGS_MOMENTO["html_interativo"] = figbox(tabela_prazo_2124_box(),
+        "Tabela real da apresentação da diretoria, renderizada aqui com o "
+        "mesmo layout e cores (não é imagem): prazo máximo de contrato por "
+        "grupo de risco e nível de confiança de seguir empregado — a "
+        "conversa cita as 23 categorias da versão da época; o modelo final "
+        "usa 14", real=True)
+else:
+    ORDEM = ["planejamento", "pgfn", "categoricas", "gpu",
+             "tempo_medio", "html_interativo"]
+    KICKERS = {
+        "planejamento": "MOMENTO 1 · PLANEJAMENTO",
+        "pgfn": "MOMENTO 2 · PESQUISA",
+        "categoricas": "MOMENTO 3 · QUALIDADE DE DADOS",
+        "gpu": "MOMENTO 4 · TREINO EM GPU",
+        "tempo_medio": "MOMENTO 5 · MÉTODO",
+        "html_interativo": "MOMENTO 6 · ENTREGA",
+    }
+    TITULOS_EXEC = {}
+    VALORES_EXEC = {}
+
+slides_momentos = []
 for i, mid in enumerate(ORDEM, 1):
-    slides.append(slide_momento(i, len(ORDEM), MOMENTOS[mid],
-                                KICKERS[mid], FIGS_MOMENTO[mid]))
+    m = MOMENTOS[mid]
+    if EXEC:
+        m = dict(m)
+        m["titulo"] = TITULOS_EXEC.get(mid, m["titulo"])
+        m["valor"] = VALORES_EXEC.get(mid, m["valor"])
+    slides_momentos.append(
+        slide_momento(i, len(ORDEM), m, KICKERS[mid], FIGS_MOMENTO[mid],
+                      resp_ch=300 if EXEC else 520))
+
+# (exec) — os demais momentos, em uma linha cada
+_outros = [
+    ("🔎", "Pesquisa autônoma",
+     "uma pergunta aberta virou um mapa completo das fontes públicas de "
+     "dívida de empresas (PGFN), com limitações e formas de acesso"),
+    ("⚡", "Treino em supercomputador",
+     "a IA alugou a máquina, instalou tudo, enviou os dados e ajustou o "
+     "modelo sozinha — reportando custo por hora antes de gastar"),
+    ("📐", "Rigor de método",
+     "antes de calcular o tempo médio de emprego, separou o que o modelo "
+     "realmente prevê do que foi perguntado — e propôs o método correto"),
+    ("🗂️", "Direto da fonte",
+     "verificou no servidor oficial do governo se os dados de emprego "
+     "estavam atualizados, e provou a resposta com evidência"),
+]
+_ocards = "".join(
+    f'<div class="ecard"><div class="eic">{ic}</div>'
+    f'<div class="ett">{e(tt)}</div>'
+    f'<div class="ecap">{e(cap)}</div></div>'
+    for ic, tt, cap in _outros)
+slide_outros = f'''
+<section class="slide">
+ {header("OS OUTROS MOMENTOS", "O que mais aconteceu — em uma linha cada")}
+ <div class="body" style="justify-content:center">
+  <div class="evo">{_ocards}</div>
+  <div class="why"><span class="wlbl">O PADRÃO</span> Em todos os casos, o mesmo
+  comportamento: a IA <b>investiga antes de responder</b>, mostra evidência e
+  avisa quando algo pode dar errado — e a decisão final é sempre humana.</div>
+ </div>
+ <div class="foot">Todos os momentos têm o trecho verbatim no histórico — disponíveis na versão completa desta apresentação</div>
+</section>'''
 
 # 11b — o aviso que evitou problema (trecho verbatim do alerta da RAIS)
 _alerta = ftp["resposta"]
 _pos = _alerta.find("## Pontos de atenção")
 _alerta = _alerta[_pos:] if _pos >= 0 else _alerta[-1400:]
-slides.append(f'''
+if EXEC:
+    _bonus_bullets = '''
+     <li><b>Ninguém perguntou isso.</b> O pedido era só "os dados do governo estão atualizados?"</li>
+     <li>A IA notou que o <b>arquivo oficial de 2023 foi republicado</b> — exatamente o ano usado para testar o modelo.</li>
+     <li>E que <b>2024/2025 já existem</b> — abrindo caminho para um novo teste com dados mais recentes.</li>
+     <li>Riscos apontados <b>antes</b> de virarem resultados errados.</li>'''
+else:
+    _bonus_bullets = '''
+     <li><b>Ninguém perguntou isso.</b> O pedido era só "o FTP está atualizado?"</li>
+     <li>O Claude notou que a <b>RAIS 2023 foi republicada</b> — exatamente o ano usado no holdout do modelo.</li>
+     <li>E que <b>2024/2025 já existem</b> — abrindo caminho para um novo holdout out-of-time.</li>
+     <li>Riscos apontados <b>antes</b> de virarem resultados errados.</li>'''
+slide_bonus = f'''
 <section class="slide">
  {header("BÔNUS · PROATIVIDADE", "O aviso que evitou um problema")}
  <div class="body">
@@ -727,73 +1136,115 @@ slides.append(f'''
     </div>
    </div>
    <div class="colR">
-    <ul class="big">
-     <li><b>Ninguém perguntou isso.</b> O pedido era só "o FTP está atualizado?"</li>
-     <li>O Claude notou que a <b>RAIS 2023 foi republicada</b> — exatamente o ano usado no holdout do modelo.</li>
-     <li>E que <b>2024/2025 já existem</b> — abrindo caminho para um novo holdout out-of-time.</li>
-     <li>Riscos apontados <b>antes</b> de virarem resultados errados.</li>
+    <ul class="big">{_bonus_bullets}
     </ul>
    </div>
   </div>
  </div>
  <div class="foot">Alerta espontâneo emitido na resposta sobre o FTP da RAIS</div>
-</section>''')
-
-# linha do tempo das sessões (reposicionada para depois do bônus)
-slides.append(slide_timeline)
+</section>'''
 
 # 11c — a tabela final do consignado (cobertura de parcelas), extraída
 # verbatim do HTML da apresentação original (mesmo layout/cores)
 def tabela_cobertura():
     src = ("/mnt/d/Projetos/Consignado/outputs/"
-           "apresentacao_risco_desligamento_mob.html")
+           "apresentacao_risco_2124.html")
     h = open(src, encoding="utf-8").read()
-    i = h.find("Cobertura esperada de parcelas")
+    # ancora no título da tabela (apt-h) para não pegar menções no texto
+    i = h.find('apt-h">Cobertura esperada de parcelas')
     ini = h.find("<table", i)
     fim = h.find("</table>", ini) + len("</table>")
     return h[ini:fim]
 
 
-slides.append(f'''
+_tab_kicker = "O RESULTADO" if EXEC else "RESULTADO FINAL"
+_tab_note = ("T = prazo do contrato em meses · acima de 12 meses, projeção "
+             "estatística · verde = melhor cobertura" if EXEC else
+             "T = meses de vínculo (MOB) · &gt;12 extrapolado (Weibull) · "
+             "verde = melhor cobertura")
+slide_tabela = f'''
 <section class="slide">
- {header("RESULTADO FINAL", "A tabela que vai para a decisão de crédito")}
+ {header(_tab_kicker, "A tabela que vai para a decisão de crédito")}
  <div class="body">
   <div class="why"><span class="wlbl">O QUE ELA DIZ</span>
-   Percentual esperado de parcelas pagas em folha, por <b>categoria de risco</b> (1–23)
-   e <b>prazo do contrato</b> (T = 6 a 60 meses): da categoria 1 em 6 meses (100%)
-   à categoria 23 em 60 meses (9%). É a ponte entre o modelo e a política de crédito —
+   Percentual esperado de parcelas pagas em folha, por <b>{"grupo" if EXEC else "categoria"} de risco</b> (1–14)
+   e <b>prazo do contrato</b> (T = 6 a 60 meses): {"do grupo" if EXEC else "da categoria"} 1 em 6 meses (100%)
+   {"ao grupo" if EXEC else "à categoria"} 14 em 60 meses (9%). É a ponte entre o modelo e a política de crédito —
    quanto maior o risco e mais longo o contrato, menor a cobertura esperada.</div>
   <div class="aptwrap">
    <div class="apt-h">Cobertura esperada de parcelas (% pagas em folha) por prazo T</div>
    {tabela_cobertura()}
-   <div class="apt-note">T = meses de vínculo (MOB) · &gt;12 extrapolado (Weibull) · verde = melhor cobertura</div>
+   <div class="apt-note">{_tab_note}</div>
   </div>
  </div>
- <div class="foot">Tabela real, extraída verbatim da apresentação da diretoria (apresentacao_risco_desligamento_mob.html) — mesmo layout e cores</div>
-</section>''')
+ <div class="foot">Tabela real, extraída verbatim da apresentação final da diretoria (apresentacao_risco_2124.html — modelo novo, esteira 21–24) — mesmo layout e cores</div>
+</section>'''
 
 # 12 — o que não seria viável (bullets + SVG)
-slides.append(f'''
+if EXEC:
+    _bal_bullets = f'''
+     <li><b>Escala:</b> registros oficiais de emprego de vários anos baixados, conferidos e processados — {fmt_n(G["comandos_bash"])} operações executadas sem digitar nenhuma à mão.</li>
+     <li><b>Infraestrutura:</b> supercomputadores alugados por hora na nuvem, com treinos longos rodando sozinhos em segundo plano.</li>
+     <li><b>Amplitude:</b> a mesma conversa cobre estatística, preparação de dados, treino do modelo e a apresentação final.</li>
+     <li><b>Velocidade com rigor:</b> do primeiro pedido à apresentação para a diretoria em 6 dias.</li>
+     <li><b>Memória do processo:</b> todo o raciocínio ficou registrado — esta apresentação veio do próprio histórico.</li>'''
+    _bal_svg = SVG_BALANCO_EXEC
+else:
+    _bal_bullets = f'''
+     <li><b>Escala:</b> microdados da RAIS e do CAGED de vários anos baixados, validados e processados — {fmt_n(G["comandos_bash"])} comandos executados sem digitar nenhum à mão.</li>
+     <li><b>Infraestrutura:</b> provisionamento, treino e monitoramento em GPUs B200/H200 remotas, com jobs longos em background.</li>
+     <li><b>Amplitude:</b> a mesma conversa cobre estatística, engenharia de dados, tuning de CatBoost e front-end.</li>
+     <li><b>Velocidade com rigor:</b> do primeiro prompt à apresentação para a diretoria em 6 dias.</li>
+     <li><b>Memória do processo:</b> todo o raciocínio ficou registrado — esta apresentação veio do próprio histórico.</li>'''
+    _bal_svg = SVG_BALANCO
+slide_balanco = f'''
 <section class="slide">
  {header("BALANÇO", "O que não seria viável sem isso")}
  <div class="body">
   <div class="cols">
    <div class="colL">
-    <ul class="big">
-     <li><b>Escala:</b> microdados da RAIS e do CAGED de vários anos baixados, validados e processados — {fmt_n(G["comandos_bash"])} comandos executados sem digitar nenhum à mão.</li>
-     <li><b>Infraestrutura:</b> provisionamento, treino e monitoramento em GPUs B200/H200 remotas, com jobs longos em background.</li>
-     <li><b>Amplitude:</b> a mesma conversa cobre estatística, engenharia de dados, tuning de CatBoost e front-end.</li>
-     <li><b>Velocidade com rigor:</b> do primeiro prompt à apresentação para a diretoria em 6 dias.</li>
-     <li><b>Memória do processo:</b> todo o raciocínio ficou registrado — esta apresentação veio do próprio histórico.</li>
+    <ul class="big">{_bal_bullets}
     </ul>
    </div>
    <div class="colR">
-    {figbox(SVG_BALANCO, "Uma pessoa cobrindo quatro papéis de um time de dados")}
+    {figbox(_bal_svg, "Uma pessoa cobrindo quatro papéis de um time de dados")}
    </div>
   </div>
  </div>
  <div class="foot">Uma pessoa + Claude Code = um time de dados de ponta a ponta</div>
-</section>''')
+</section>'''
+
+# 12a (exec) — governança e riscos
+_gov = [
+    ("🔒", "Dados e LGPD",
+     "100% dados públicos e agregados do governo — nenhum dado de cliente "
+     "do banco saiu do ambiente interno"),
+    ("🧭", "Humano no comando",
+     "a IA executa, mas cada decisão de método e cada resultado foi "
+     "validado por uma pessoa — perguntar, decidir e validar"),
+    ("📜", "Auditabilidade total",
+     "cada operação e cada raciocínio ficou registrado no histórico — esta "
+     "apresentação foi gerada a partir dele"),
+    ("✅", "Próximos passos",
+     "validação independente do modelo, teste com dados mais recentes "
+     "(2024/2025) e acompanhamento contínuo do desempenho"),
+]
+_gcards = "".join(
+    f'<div class="ecard"><div class="eic">{ic}</div>'
+    f'<div class="ett">{e(tt)}</div>'
+    f'<div class="ecap">{e(cap)}</div></div>'
+    for ic, tt, cap in _gov)
+slide_governanca = f'''
+<section class="slide">
+ {header("GOVERNANÇA", "As perguntas certas — e as respostas")}
+ <div class="body" style="justify-content:center">
+  <div class="evo">{_gcards}</div>
+  <div class="why"><span class="wlbl">EM RESUMO</span> A IA acelera a execução;
+  <b>o controle continua humano e auditável</b>. Antes de qualquer uso em produção,
+  o modelo passa pelo mesmo ciclo de validação de qualquer modelo de crédito do banco.</div>
+ </div>
+ <div class="foot">Estrutura de controle compatível com a governança de modelos já existente no banco</div>
+</section>'''
 
 # 12b — reflexão: uma nova forma de interagir com a computação
 _eras = [
@@ -836,7 +1287,7 @@ for i, (nome, cod, destaque) in enumerate(_langs):
     if i < len(_langs) - 1:
         _lchips.append('<div class="earr">→</div>')
 
-slides.append(f'''
+slide_reflexao = f'''
 <section class="slide">
  {header("REFLEXÃO", "Uma nova forma de interagir com a computação")}
  <div class="body" style="justify-content:space-evenly">
@@ -854,7 +1305,7 @@ slides.append(f'''
        'convergem para a mesma coisa: <b>a conversa</b>. Este projeto inteiro é um exemplo disso.</div>')}
  </div>
  <div class="foot">60 anos de computação: a máquina veio até a nossa língua — não o contrário</div>
-</section>''')
+</section>'''
 
 # 12c — reflexão final: os desafios (custo, energia, data centers, ambiente)
 _desafios = [
@@ -910,7 +1361,7 @@ def svg_energia():
             f'xmlns="http://www.w3.org/2000/svg">{"".join(el)}</svg>')
 
 
-slides.append(f'''
+slide_energia = f'''
 <section class="slide">
  {header("REFLEXÃO · PARTE 2", "Nada disso é de graça — os desafios")}
  <div class="body" style="justify-content:space-evenly">
@@ -939,22 +1390,100 @@ slides.append(f'''
        'meses de trabalho são exatamente isso — energia convertida em valor, não em desperdício.</div>')}
  </div>
  <div class="foot">Ordens de grandeza públicas (IEA, Energy &amp; AI 2025) — o ponto é a tendência, não o decimal</div>
-</section>''')
+</section>'''
+
+# 12d (exec) — energia, versão adaptada: tom ESG, foco em "usar bem"
+_esg = [
+    ("⚡", "A IA consome energia",
+     "data centers de IA elevam a demanda elétrica mundial — o tema já está "
+     "na pauta ESG de toda grande empresa, inclusive dos bancos"),
+    ("📉", "A eficiência cresce mais rápido",
+     "a energia e o custo por tarefa caíram ordens de magnitude em poucos "
+     "anos — chips, modelos e software cada vez mais eficientes"),
+    ("🌱", "A matriz energética importa",
+     "renováveis e nuclear viram peça central da infraestrutura de IA — e "
+     "o Brasil larga na frente, com uma das matrizes mais limpas do mundo"),
+]
+_esgcards = "".join(
+    f'<div class="ecard"><div class="eic">{ic}</div>'
+    f'<div class="ett">{e(tt)}</div>'
+    f'<div class="ecap">{e(cap)}</div></div>'
+    for ic, tt, cap in _esg)
+slide_energia_exec = f'''
+<section class="slide">
+ {header("REFLEXÃO · PARTE 2", "O custo energético — e por que usar bem importa")}
+ <div class="body" style="justify-content:space-evenly">
+  <div class="cols" style="flex:0 0 auto;align-items:stretch">
+   <div class="colL">{figbox(svg_energia(),
+       "Em 2030, data centers devem consumir quase 1.000 TWh/ano — mais que o dobro de 2024 e na ordem do consumo elétrico anual do Japão")
+       .replace('<div class="figin">',
+                '<div class="figin" style="max-height:calc(var(--u)*17)">')}</div>
+   <div class="colR" style="justify-content:center">
+    <div class="evo" style="flex-direction:column">{_esgcards}</div>
+   </div>
+  </div>
+  <div class="why"><span class="wlbl">USAR BEM</span>
+  Toda revolução tecnológica teve seu preço — e o desta é medido em watts.
+  A resposta não é evitar a tecnologia: é <b>usá-la com propósito</b>.
+  Seis dias de conversa que substituem meses de trabalho são exatamente isso —
+  <b>energia convertida em valor</b>, não em desperdício.</div>
+ </div>
+ <div class="foot">Ordens de grandeza públicas (IEA, Energy &amp; AI 2025) — o ponto é a tendência, não o decimal</div>
+</section>'''
 
 # 13 — encerramento
-slides.append(f'''
+slide_fim = f'''
 <section class="slide cover">
  <div class="cdec">{SVG_COVER}</div>
  <div class="cbox">
   <div class="ckick">PARA FECHAR</div>
   <div class="ctit">TUDO ISSO FOI FEITO<br>CONVERSANDO.</div>
-  <div class="csub">Nenhum dos {fmt_n(G["comandos_bash"])} comandos foi digitado à mão.
+  <div class="csub">Nenhum{"a" if EXEC else ""} d{"as" if EXEC else "os"} {fmt_n(G["comandos_bash"])} {"operações executadas foi digitada" if EXEC else "comandos foi digitado"} à mão.
   Nenhuma linha dos {fmt_n(G["arquivos_escritos"])} arquivos foi escrita sozinha.
   O trabalho foi dirigir: perguntar, decidir e validar.</div>
   <div class="cmeta">E sim — esta própria apresentação também foi gerada pelo Claude,
   lendo o histórico real das sessões.</div>
  </div>
-</section>''')
+</section>'''
+
+# ------------------------------------------------ montagem da ordem final
+if EXEC:
+    # resultado primeiro, bastidores depois; sem heatmap nem energia
+    slides = [
+        slide_capa,
+        slide_sonho,
+        slide_problema,
+        slide_tabela,        # o resultado, logo no início
+        slide_numeros,       # o que isso custou
+        slide_projeto,       # como foi feito, em um slide
+        slide_anatomia,
+        *slides_momentos,
+        slide_outros,
+        slide_bonus,
+        slide_timeline,
+        slide_balanco,
+        slide_governanca,
+        slide_reflexao,
+        slide_energia_exec,
+        slide_fim,
+    ]
+else:
+    slides = [
+        slide_capa,
+        slide_sonho,
+        slide_projeto,
+        slide_numeros,
+        slide_heatmap,
+        slide_anatomia,
+        *slides_momentos,
+        slide_bonus,
+        slide_timeline,
+        slide_tabela,
+        slide_balanco,
+        slide_reflexao,
+        slide_energia,
+        slide_fim,
+    ]
 
 SLIDES_HTML = "\n".join(slides)
 SESS_JSON = json.dumps(sess_js, ensure_ascii=False)
@@ -965,7 +1494,7 @@ HTML = """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<title>Como o Claude construiu o modelo do Consignado</title>
+<title>@@TITLE@@</title>
 <style>
 @@FONTS@@
 :root{--u:min(1vw,1.7778vh);--navy:#14233f;--ink:#1b2430;--gray:#5b6675;
@@ -997,13 +1526,14 @@ margin:calc(var(--u)*0.2) calc(var(--u)*0.2)}
 /* header */
 .hb{position:absolute;top:0;left:0;right:0;height:14%;background:var(--navy);
 border-left:calc(var(--u)*0.55) solid var(--orange);display:flex;
-flex-direction:column;justify-content:center;padding-left:2.6%}
+flex-direction:column;justify-content:center;padding-left:2.6%;
+padding-right:15%}
 .kick{color:var(--lblue);font-weight:700;letter-spacing:.06em;
 font-size:calc(var(--u)*1.15)}
 .ttl{color:#fff;font-weight:700;font-size:calc(var(--u)*2.0)}
-.body{position:absolute;top:15.5%;left:2.6%;right:7.5%;bottom:8%;
+.body{position:absolute;top:15.5%;left:2.6%;right:2.6%;bottom:8%;
 display:flex;flex-direction:column;gap:calc(var(--u)*0.9)}
-.foot{position:absolute;bottom:1.6%;left:2.6%;right:7.5%;color:var(--gray);
+.foot{position:absolute;bottom:1.6%;left:2.6%;right:2.6%;color:var(--gray);
 font-size:calc(var(--u)*0.85);border-top:1px solid #e3e7ee;
 padding-top:calc(var(--u)*0.4)}
 /* colunas */
@@ -1038,9 +1568,18 @@ font-variant-numeric:tabular-nums}
 position:sticky;top:0;font-weight:600}
 .aptbl td{padding:1px 4px;text-align:center;border:1px solid #fff}
 .aptbl td.ct{font-weight:700}
+/* tabela do deck novo dentro de figbox (slide Entrega, exec) */
+.apt2c{display:flex;gap:calc(var(--u)*0.8);width:100%;max-height:100%;
+align-items:flex-start;justify-content:center;overflow:auto}
+.apt2b{min-width:0}
+.apt-h2{font-weight:700;font-size:calc(var(--u)*0.8);color:var(--navy);
+margin-bottom:.3em;line-height:1.15}
+.apt2b .aptbl{font-size:calc(var(--u)*0.78)}
+.apt2b .aptbl th{padding:1px 5px;position:static}
+.apt2b .aptbl td{padding:1px 6px}
 /* capa */
 .cover{background:var(--navy)}
-.cdec{position:absolute;right:3%;top:10%;bottom:10%;width:26%;opacity:.55;
+.cdec{position:absolute;right:3%;top:16%;bottom:10%;width:26%;opacity:.55;
 overflow:hidden}
 .cdec svg{width:100%;height:100%}
 .cbox{position:absolute;left:7%;top:24%;right:32%}
@@ -1227,19 +1766,20 @@ font-weight:700;width:calc(var(--u)*1.7);height:calc(var(--u)*1.7);
 border-radius:50%;line-height:calc(var(--u)*1.7);
 font-size:calc(var(--u)*1.0)}
 .arr{color:var(--orange);font-size:calc(var(--u)*1.8);font-weight:700}
-/* navegação lateral direita */
-#nav{position:absolute;right:1.1%;top:50%;transform:translateY(-50%);
-display:flex;flex-direction:column;gap:calc(var(--u)*0.8);align-items:center;
+/* navegação no canto superior direito (sobre a faixa do cabeçalho) */
+#nav{position:absolute;right:1.1%;top:0;height:14%;
+display:flex;flex-direction:row;gap:calc(var(--u)*0.6);align-items:center;
 z-index:50}
-.nbtn{width:calc(var(--u)*3.2);height:calc(var(--u)*3.2);border-radius:50%;
-border:none;background:var(--navy);color:#fff;font-size:calc(var(--u)*1.7);
-cursor:pointer;opacity:.85;line-height:1}
-.nbtn:hover{background:var(--orange);color:var(--navy);opacity:1}
+.nbtn{width:calc(var(--u)*2.7);height:calc(var(--u)*2.7);border-radius:50%;
+border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);
+color:#fff;font-size:calc(var(--u)*1.5);cursor:pointer;line-height:1}
+.nbtn:hover{background:var(--orange);border-color:var(--orange);
+color:var(--navy)}
 .nbtn:disabled{opacity:.25;cursor:default}
-#counter{color:var(--gray);font-size:calc(var(--u)*0.9);
-font-variant-numeric:tabular-nums;background:rgba(255,255,255,.88);
-border:1px solid #dfe6f0;
-border-radius:6px;padding:calc(var(--u)*0.2) calc(var(--u)*0.5)}
+#counter{color:#cdd9ea;font-size:calc(var(--u)*0.85);
+font-variant-numeric:tabular-nums;background:rgba(255,255,255,.08);
+border:1px solid rgba(255,255,255,.25);
+border-radius:6px;padding:calc(var(--u)*0.2) calc(var(--u)*0.55)}
 /* barra de progresso */
 #pbar{position:absolute;left:0;bottom:0;height:calc(var(--u)*0.35);
 background:var(--orange);width:0;z-index:60;transition:width .25s ease}
@@ -1268,6 +1808,9 @@ background:var(--orange);width:0;z-index:60;transition:width .25s ease}
 </div>
 <script>
 const SESS=@@SESS@@;
+/* NOREV: sem revelação progressiva (versão executiva ou ?modo=executivo) */
+const NOREV=@@NOREV@@||
+ new URLSearchParams(location.search).get('modo')==='executivo';
 const slides=[...document.querySelectorAll('.slide')];let cur=0;
 const counter=document.getElementById('counter');
 const bp=document.getElementById('bprev'),bn=document.getElementById('bnext');
@@ -1278,8 +1821,10 @@ function show(n){cur=Math.max(0,Math.min(slides.length-1,n));
  bp.disabled=cur===0;bn.disabled=cur===slides.length-1;
  pbar.style.width=((cur+1)/slides.length*100)+'%';
  /* rearma a revelação progressiva ao entrar no slide */
- slides[cur].querySelectorAll('.rev').forEach(r=>r.classList.remove('shown'));}
+ slides[cur].querySelectorAll('.rev').forEach(r=>
+  r.classList.toggle('shown',NOREV));}
 function revela(){
+ if(NOREV)return false;
  const r=slides[cur].querySelector('.rev:not(.shown)');
  if(!r)return false;
  r.classList.add('shown');
@@ -1344,8 +1889,13 @@ function esc(t){const d=document.createElement('div');
 </body>
 </html>"""
 
-html_final = HTML.replace("@@FONTS@@", FONTS_CSS).replace(
-    "@@SLIDES@@", SLIDES_HTML).replace("@@SESS@@", SESS_JSON)
+TITLE = ("Como o Claude construiu o modelo do Consignado — visão executiva"
+         if EXEC else "Como o Claude construiu o modelo do Consignado")
+html_final = (HTML.replace("@@FONTS@@", FONTS_CSS)
+              .replace("@@TITLE@@", TITLE)
+              .replace("@@NOREV@@", "true" if EXEC else "false")
+              .replace("@@SLIDES@@", SLIDES_HTML)
+              .replace("@@SESS@@", SESS_JSON))
 
 with open(OUT, "w", encoding="utf-8") as f:
     f.write(html_final)

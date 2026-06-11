@@ -632,7 +632,7 @@ def svg_km_2124():
 
     el = []
     rng = ymax - ymin
-    dec = 3 if rng < 0.04 else 2
+    dec = 1 if rng < 0.04 else 0                 # casas decimais do tick em %
     NT = 5
     for i in range(NT + 1):                      # grade + ticks Y
         sv = ymin + rng * i / NT
@@ -640,7 +640,7 @@ def svg_km_2124():
         el.append(f'<line x1="{Ml}" y1="{yy:.1f}" x2="{W-Mr}" y2="{yy:.1f}" '
                   f'stroke="#e6e6e6"/>')
         el.append(f'<text x="{Ml-6}" y="{yy+3:.1f}" text-anchor="end" '
-                  f'font-size="11" fill="#666">{sv:.{dec}f}</text>')
+                  f'font-size="11" fill="#666">{sv*100:.{dec}f}%</text>')
     for m in range(XMAX + 1):                    # grade + ticks X
         xx = X(m)
         el.append(f'<line x1="{xx:.1f}" y1="{Mt}" x2="{xx:.1f}" '
